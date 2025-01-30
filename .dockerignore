@@ -1,0 +1,7 @@
+.gitlab
+cmake-build-release
+cmake-build-debug
+.gitignore
+.idea
+.git
+.gitlab-ci.yml
