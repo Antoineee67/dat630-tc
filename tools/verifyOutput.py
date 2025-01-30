@@ -1,3 +1,4 @@
+import os
 import sys
 
 
@@ -23,9 +24,12 @@ class fileData:
         self.timesteps = list()
         self.nBody = 0
         self.nDim = 0
-        self.filePath = filePath
+
+        self.path = os.path.join(os.getcwd(), filePath)
+        print(f"Loading data from: {self.path}")
+
         lines = None
-        with open(filePath, 'r') as f:
+        with open(self.path, 'r') as f:
             lines = f.readlines()
 
         self.nBody = int(lines[0])
