@@ -1,26 +1,16 @@
-default:
-  image: docker:25.0.5
-  services:
-    - docker:25.0.5-dind
-  before_script:
-    - docker info
+image: docker
+
+services:
+  - name: docker:dind
+
+stages:
+  - test
 
 
-
-build:
-  stage: build
-  tags:
-    - docker
-  script:
-    - docker build -t treecode .
-
-
-test:
+verification-test:
   stage: test
   tags:
-    - docker
+    - docker-build
   script:
+    - docker build -t treecode .
     - docker run treecode ./tools/verifyOutput.sh
-
-
-
