@@ -9,6 +9,9 @@
 #include "getparam.h"
 #define global                                  /* don't default to extern  */
 #include "treecode.h"
+#include "mpi.h"
+
+
 
 /*
  * Default values for input parameters.
@@ -60,6 +63,10 @@ local void testdata(void);                      /* generate test data       */
 
 int main(int argc, string argv[])
 {
+    MPI_Init(&argc, &argv);
+
+
+
     initparam(argv, defv);                      /* initialize param access  */
     headline = defv[0] + 1;                     /* skip ";" in headline     */
     startrun();                                 /* get params & input data  */
@@ -81,7 +88,10 @@ int main(int argc, string argv[])
             output();                           /* and output results       */
         }
 #endif
+    MPI_Finalize();
     return (0);                                 /* end with proper status   */
+
+
 }
 
 /*

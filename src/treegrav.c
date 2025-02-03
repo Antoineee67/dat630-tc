@@ -7,6 +7,15 @@
 #include "mathfns.h"
 #include "vectmath.h"
 #include "treedefs.h"
+#include "x86_64-linux-gnu/mpich/mpi.h"
+
+int mpi_rank;
+int mpi_numproc;
+void init_mpi() {
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_numproc);
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+}
+
 
 /* Local routines to perform force calculations. */
 
@@ -65,8 +74,11 @@ void gravcalc(void)
 local void walktree(nodeptr *aptr, nodeptr *nptr, cellptr cptr, cellptr bptr,
                     nodeptr p, real psize, vector pmid)
 {
+
     nodeptr *np, *ap, q;
     int actsafe;
+
+
 
     if (Update(p)) {                            /* are new forces needed?   */
         np = nptr;                              /* start new active list    */
@@ -101,6 +113,7 @@ local void walktree(nodeptr *aptr, nodeptr *nptr, cellptr cptr, cellptr bptr,
             gravsum((bodyptr) p, cptr, bptr);   /* sum force on the body    */
         }
     }
+
 }
 
 #if defined(QUICKSCAN)
@@ -161,7 +174,7 @@ local bool accept(nodeptr c, real psize, vector pmid)
  */
 
 local void walksub(nodeptr *nptr, nodeptr *np, cellptr cptr, cellptr bptr,
-                   nodeptr p, real psize, vector pmid)
+                   nodeptr p, real psize, vector pmid) // add rank parameter which is used by MPI stuff, add to walktree as well? Or init MPI in walktree?
 {
     real poff;
     nodeptr q;
@@ -170,11 +183,22 @@ local void walksub(nodeptr *nptr, nodeptr *np, cellptr cptr, cellptr bptr,
 
     poff = psize / 4;                           /* precompute mid. offset   */
     if (Type(p) == CELL) {                      /* fanout over descendents  */
+        int worker = 1;
         for (q = More(p); q != Next(p); q = Next(q)) {
-                                                /* loop over all subcells   */
+
+            /* loop over all subcells   */
             for (k = 0; k < NDIM; k++)          /* locate each's midpoint   */
                 nmid[k] = pmid[k] + (Pos(q)[k] < pmid[k] ? - poff : poff);
-            walktree(nptr, np, cptr, bptr, q, psize / 2, nmid);
+            if (mpi_rank == 0) {
+                MPI_Send(&q, sizeof(nodeptr), MPI_BYTE, worker, 0, MPI_COMM_WORLD); // assign work to all other processes
+                worker = (worker + 1) % mpi_numproc;
+            } else if (mpi_rank == worker) {
+                // recive from master process
+                MPI_Recv(&q, sizeof(nodeptr), MPI_BYTE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                walktree(nptr, np, cptr, bptr, q, psize / 2, nmid);
+            }
+
+
                                                 /* recurse on subcell       */
         }
     } else {                                    /* extend virtual tree      */
