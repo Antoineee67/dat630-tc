@@ -46,6 +46,11 @@ global int nbody;                       /* number of bodies in system       */
 
 global bodyptr bodytab;                 /* points to array of bodies        */
 
+global int mpi_rank;
+
+global int mpi_numproc;
+
+
 /*
  * Prototypes for I/O routines.
  */
@@ -56,5 +61,6 @@ void forcereport(void);                 /* report on force calculation      */
 void output(void);                      /* perform output operation         */
 void savestate(string);                 /* save system state                */
 void restorestate(string);              /* restore system state             */
+
 
 #endif /* ! _treecode_h */

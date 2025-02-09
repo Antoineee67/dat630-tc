@@ -7,6 +7,7 @@
 #include "mathfns.h"
 #include "vectmath.h"
 #include "treedefs.h"
+#include "treecode.h"
 
 /*
  * Local routines and variables to perform tree construction.
@@ -149,7 +150,7 @@ local void loadbody(bodyptr p)
         if (Type(Subp(q)[qind]) == BODY) {      /* if another body reached  */
             DOTPSUBV(dist2, distv, Pos(p), Pos(Subp(q)[qind]));
             if (dist2 == 0.0)                   /* check positions differ   */
-                error("loadbody: two bodies have same position\n");
+                error("loadbody: two bodies have same position, rank=%d\n", mpi_rank);
             c = makecell();                     /* then allocate new cell   */
             for (k = 0; k < NDIM; k++)          /* and initialize midpoint  */
                 Pos(c)[k] = Pos(q)[k] +         /* offset from parent       */

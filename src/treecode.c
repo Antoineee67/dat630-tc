@@ -7,55 +7,73 @@
 #include "mathfns.h"
 #include "vectmath.h"
 #include "getparam.h"
-#define global                                  /* don't default to extern  */
+#define global /* don't default to extern  */
 #include "treecode.h"
-#include "mpi.h"
-
-
+// #include "mpi.h"
+#include "x86_64-linux-gnu/mpich/mpi.h"
 
 /*
  * Default values for input parameters.
  */
 
-string defv[] = {               ";Hierarchical N-body code "
+string defv[] = {
+    ";Hierarchical N-body code "
 #if defined(QUICKSCAN)
-                                    "(quick scan)",
+    "(quick scan)",
 #else
-                                    "(theta scan)",
+    "(theta scan)",
 #endif
-    "in=",                      ";Input file with initial conditions",
-    "out=",                     ";Output file of N-body frames",
+    "in=",
+    ";Input file with initial conditions",
+    "out=",
+    ";Output file of N-body frames",
 #if defined(USEFREQ)
-    "freq=32.0",                ";Leapfrog integration frequency",
+    "freq=32.0",
+    ";Leapfrog integration frequency",
 #else
-    "dtime=1/32",               ";Leapfrog integration timestep",
+    "dtime=1/32",
+    ";Leapfrog integration timestep",
 #endif
-    "eps=0.025",                ";Density smoothing length",
+    "eps=0.025",
+    ";Density smoothing length",
 #if !defined(QUICKSCAN)
-    "theta=1.0",                ";Force accuracy parameter",
+    "theta=1.0",
+    ";Force accuracy parameter",
 #endif
-    "usequad=false",            ";If true, use quad moments",
-    "options=",                 ";Various control options",
-    "tstop=2.0",                ";Time to stop integration",
+    "usequad=false",
+    ";If true, use quad moments",
+    "options=",
+    ";Various control options",
+    "tstop=2.0",
+    ";Time to stop integration",
 #if defined(USEFREQ)
-    "freqout=4.0",              ";Data output frequency",
+    "freqout=4.0",
+    ";Data output frequency",
 #else
-    "dtout=1/4",                ";Data output timestep",
+    "dtout=1/4",
+    ";Data output timestep",
 #endif
-    "nbody=4096",               ";Number of bodies for test run",
-    "seed=123",                 ";Random number seed for test run",
-    "save=",                    ";Write state file as code runs",
-    "restore=",                 ";Continue run from state file",
-    "VERSION=1.4",              ";Joshua Barnes  February 21 2001",
+    "nbody=4096",
+    ";Number of bodies for test run",
+    "seed=123",
+    ";Random number seed for test run",
+    "save=",
+    ";Write state file as code runs",
+    "restore=",
+    ";Continue run from state file",
+    "VERSION=1.4",
+    ";Joshua Barnes  February 21 2001",
     NULL,
 };
 
 /* Prototypes for local procedures. */
 
-local void treeforce(void);                     /* do force calculation     */
-local void stepsystem(void);                    /* advance by one time-step */
-local void startrun(void);                      /* initialize system state  */
-local void testdata(void);                      /* generate test data       */
+local void treeforce(void);  /* do force calculation     */
+local void stepsystem(void); /* advance by one time-step */
+local void startrun(void);   /* initialize system state  */
+local void testdata(void);   /* generate test data       */
+
+local void init_mpi(); /*initialize mpi*/
 
 /*
  * MAIN: toplevel routine for hierarchical N-body code.
@@ -63,35 +81,53 @@ local void testdata(void);                      /* generate test data       */
 
 int main(int argc, string argv[])
 {
-    MPI_Init(&argc, &argv);
 
+    init_mpi();
+    initparam(argv, defv);  /* initialize param access  */
+    headline = defv[0] + 1; /* skip ";" in headline     */
+    startrun();             /* get params & input data  */
+    if (mpi_rank == 0)
+    {
+        startoutput(); /* activate output code     */
+    }
 
-
-    initparam(argv, defv);                      /* initialize param access  */
-    headline = defv[0] + 1;                     /* skip ";" in headline     */
-    startrun();                                 /* get params & input data  */
-    startoutput();                              /* activate output code     */
-    if (nstep == 0) {                           /* if data just initialized */
-        treeforce();                            /* do complete calculation  */
-        output();                               /* and report diagnostics   */
+    if (nstep == 0)
+    {                /* if data just initialized */
+        treeforce(); /* do complete calculation  */
+        if (mpi_rank == 0)
+        {
+            output(); /* and report diagnostics   */
+        }
     }
 #if defined(USEFREQ)
-    if (freq != 0.0)                            /* if time steps requested  */
-        while (tstop - tnow > 0.01/freq) {      /* while not past tstop     */
-            stepsystem();                       /* advance step by step     */
-            output();                           /* and output results       */
+    if (freq != 0.0) /* if time steps requested  */
+        while (tstop - tnow > 0.01 / freq)
+        {                 /* while not past tstop     */
+            stepsystem(); /* advance step by step     */
+            if (mpi_rank == 0){
+                output();     /* and output results       */
+            }
         }
 #else
-    if (dtime != 0.0)                           /* if time steps requested  */
-        while (tstop - tnow > 0.01 * dtime) {   /* while not past tstop     */
-            stepsystem();                       /* advance step by step     */
-            output();                           /* and output results       */
+    if (dtime != 0.0) /* if time steps requested  */
+        while (tstop - tnow > 0.01 * dtime)
+        {                 /* while not past tstop     */
+            stepsystem(); /* advance step by step     */
+            if (mpi_rank == 0){
+                output();     /* and output results       */
+            }
+            
         }
 #endif
     MPI_Finalize();
-    return (0);                                 /* end with proper status   */
+    return (0); /* end with proper status   */
+}
 
-
+local void init_mpi()
+{
+    MPI_Init(NULL, NULL);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_numproc);
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
 }
 
 /*
@@ -102,11 +138,14 @@ local void treeforce(void)
 {
     bodyptr p;
 
-    for (p = bodytab; p < bodytab+nbody; p++)   /* loop over all bodies     */
+    for (p = bodytab; p < bodytab + nbody; p++) /* loop over all bodies     */
         Update(p) = TRUE;                       /* update all forces        */
     maketree(bodytab, nbody);                   /* construct tree structure */
     gravcalc();                                 /* compute initial forces   */
-    forcereport();                              /* print force statistics   */
+    if (mpi_rank == 0)
+    {
+        forcereport(); /* print force statistics   */
+    }
 }
 
 /*
@@ -116,20 +155,22 @@ local void treeforce(void)
 local void stepsystem(void)
 {
 #if defined(USEFREQ)
-    real dtime = 1.0 / freq;                    /* set basic time-step      */
+    real dtime = 1.0 / freq; /* set basic time-step      */
 #endif
     bodyptr p;
 
-    for (p = bodytab; p < bodytab+nbody; p++) { /* loop over all bodies     */
-        ADDMULVS(Vel(p), Acc(p), 0.5 * dtime);  /* advance v by 1/2 step    */
-        ADDMULVS(Pos(p), Vel(p), dtime);        /* advance r by 1 step      */
+    for (p = bodytab; p < bodytab + nbody; p++)
+    {                                          /* loop over all bodies     */
+        ADDMULVS(Vel(p), Acc(p), 0.5 * dtime); /* advance v by 1/2 step    */
+        ADDMULVS(Pos(p), Vel(p), dtime);       /* advance r by 1 step      */
     }
-    treeforce();                                /* perform force calc.      */
-    for (p = bodytab; p < bodytab+nbody; p++) { /* loop over all bodies     */
-        ADDMULVS(Vel(p), Acc(p), 0.5 * dtime);  /* advance v by 1/2 step    */
+    treeforce(); /* perform force calc.      */
+    for (p = bodytab; p < bodytab + nbody; p++)
+    {                                          /* loop over all bodies     */
+        ADDMULVS(Vel(p), Acc(p), 0.5 * dtime); /* advance v by 1/2 step    */
     }
-    nstep++;                                    /* count another time step  */
-    tnow = tnow + dtime;                        /* finally, advance time    */
+    nstep++;             /* count another time step  */
+    tnow = tnow + dtime; /* finally, advance time    */
 }
 
 /*
@@ -142,16 +183,16 @@ local void startrun(void)
     double dt1, dt2;
 #endif
 
-    infile = getparam("in");                    /* set I/O file names       */
+    infile = getparam("in"); /* set I/O file names       */
     outfile = getparam("out");
     savefile = getparam("save");
-    if (strnull(getparam("restore"))) {         /* if starting a new run    */
-        eps = getdparam("eps");                 /* get input parameters     */
+    if (strnull(getparam("restore")))
+    {                           /* if starting a new run    */
+        eps = getdparam("eps"); /* get input parameters     */
 #if defined(USEFREQ)
         freq = getdparam("freq");
 #else
-        dtime = (sscanf(getparam("dtime"), "%lf/%lf", &dt1, &dt2) == 2 ?
-                 dt1 / dt2 : getdparam("dtime"));
+        dtime = (sscanf(getparam("dtime"), "%lf/%lf", &dt1, &dt2) == 2 ? dt1 / dt2 : getdparam("dtime"));
 #endif
 #if !defined(QUICKSCAN)
         theta = getdparam("theta");
@@ -161,26 +202,28 @@ local void startrun(void)
 #if defined(USEFREQ)
         freqout = getdparam("freqout");
 #else
-        dtout = (sscanf(getparam("dtout"), "%lf/%lf", &dt1, &dt2) == 2 ?
-                 dt1 / dt2 : getdparam("dtout"));
+        dtout = (sscanf(getparam("dtout"), "%lf/%lf", &dt1, &dt2) == 2 ? dt1 / dt2 : getdparam("dtout"));
 #endif
         options = getparam("options");
-        if (! strnull(infile))                  /* if data file was given   */
-            inputdata();                        /* then read inital data    */
-        else {                                  /* else make initial data   */
-            nbody = getiparam("nbody");         /* get number of bodies     */
-            if (nbody < 1)                      /* check for silly values   */
+        if (!strnull(infile)) /* if data file was given   */
+            inputdata();      /* then read inital data    */
+        else
+        {                               /* else make initial data   */
+            nbody = getiparam("nbody"); /* get number of bodies     */
+            if (nbody < 1)              /* check for silly values   */
                 error("startrun: absurd value for nbody\n");
-            srandom(getiparam("seed"));         /* set random number gen.   */
-            testdata();                         /* and make plummer model   */
-            tnow = 0.0;                         /* reset elapsed model time */
+            srandom(getiparam("seed")); /* set random number gen.   */
+            testdata();                 /* and make plummer model   */
+            tnow = 0.0;                 /* reset elapsed model time */
         }
-        rsize = 1.0;                            /* start root w/ unit cube  */
-        nstep = 0;                              /* begin counting steps     */
-        tout = tnow;                            /* schedule first output    */
-    } else {                                    /* else restart old run     */
-        restorestate(getparam("restore"));      /* read in state file       */
-        if (getparamstat("eps") & ARGPARAM)     /* if given, set new params */
+        rsize = 1.0; /* start root w/ unit cube  */
+        nstep = 0;   /* begin counting steps     */
+        tout = tnow; /* schedule first output    */
+    }
+    else
+    {                                       /* else restart old run     */
+        restorestate(getparam("restore"));  /* read in state file       */
+        if (getparamstat("eps") & ARGPARAM) /* if given, set new params */
             eps = getdparam("eps");
 #if !defined(QUICKSCAN)
         if (getparamstat("theta") & ARGPARAM)
@@ -195,13 +238,12 @@ local void startrun(void)
 #if defined(USEFREQ)
         if (getparamstat("freqout") & ARGPARAM)
             freqout = getdparam("freqout");
-        if (scanopt(options, "new-tout"))       /* if output time reset     */
-            tout = tnow + 1 / freqout;          /* then offset from now     */
+        if (scanopt(options, "new-tout")) /* if output time reset     */
+            tout = tnow + 1 / freqout;    /* then offset from now     */
 #else
-            dtout = (sscanf(getparam("dtout"), "%lf/%lf", &dt1, &dt2) == 2 ?
-                      dt1 / dt2 : getdparam("dtout"));
-        if (scanopt(options, "new-tout"))       /* if output time reset     */
-            tout = tnow + dtout;                /* then offset from now     */
+        dtout = (sscanf(getparam("dtout"), "%lf/%lf", &dt1, &dt2) == 2 ? dt1 / dt2 : getdparam("dtout"));
+        if (scanopt(options, "new-tout")) /* if output time reset     */
+            tout = tnow + dtout;          /* then offset from now     */
 #endif
     }
 }
@@ -212,7 +254,7 @@ local void startrun(void)
  * See Aarseth, SJ, Henon, M, & Wielen, R (1974) Astr & Ap, 37, 183.
  */
 
-#define MFRAC  0.999                            /* cut off 1-MFRAC of mass  */
+#define MFRAC 0.999 /* cut off 1-MFRAC of mass  */
 
 local void testdata(void)
 {
@@ -220,29 +262,120 @@ local void testdata(void)
     vector rcm, vcm;
     bodyptr p;
 
-    bodytab = (bodyptr) allocate(nbody * sizeof(body));
-                                                /* alloc space for bodies   */
-    rsc = (3 * PI) / 16;                        /* and length scale factor  */
-    vsc = rsqrt(1.0 / rsc);                     /* find speed scale factor  */
-    CLRV(rcm);                                  /* zero out cm position     */
-    CLRV(vcm);                                  /* zero out cm velocity     */
-    for (p = bodytab; p < bodytab+nbody; p++) { /* loop over bodies         */
-        Type(p) = BODY;                         /* tag as a body            */
-        Mass(p) = 1.0 / nbody;                  /* set masses equal         */
-        x = xrandom(0.0, MFRAC);                /* pick enclosed mass       */
-        r = 1.0 / rsqrt(rpow(x, -2.0/3.0) - 1); /* find enclosing radius    */
-        pickshell(Pos(p), NDIM, rsc * r);       /* pick position vector     */
-        do {                                    /* select from fn g(x)      */
-            x = xrandom(0.0, 1.0);              /* for x in range 0:1       */
-            y = xrandom(0.0, 0.1);              /* max of g(x) is 0.092     */
-        } while (y > x*x * rpow(1 - x*x, 3.5)); /* using von Neumann tech   */
-        v = x * rsqrt(2.0 / rsqrt(1 + r*r));    /* find resulting speed     */
-        pickshell(Vel(p), NDIM, vsc * v);       /* pick velocity vector     */
-        ADDMULVS(rcm, Pos(p), 1.0 / nbody);     /* accumulate cm position   */
-        ADDMULVS(vcm, Vel(p), 1.0 / nbody);     /* accumulate cm velocity   */
+    real *mpi_pos;
+    real *mpi_vel;
+
+    bodytab = (bodyptr)allocate(nbody * sizeof(body));
+    mpi_pos = (real *)allocate(nbody*NDIM*sizeof(real));
+    mpi_vel = (real *)allocate(nbody*NDIM*sizeof(real));
+
+    if (mpi_rank == 0)
+    {
+        /* alloc space for bodies   */
+        rsc = (3 * PI) / 16;    /* and length scale factor  */
+        vsc = rsqrt(1.0 / rsc); /* find speed scale factor  */
+        CLRV(rcm);              /* zero out cm position     */
+        CLRV(vcm);              /* zero out cm velocity     */
+        for (p = bodytab; p < bodytab + nbody; p++)
+        {                                             /* loop over bodies         */
+            Type(p) = BODY;                           /* tag as a body            */
+            Mass(p) = 1.0 / nbody;                    /* set masses equal         */
+            x = xrandom(0.0, MFRAC);                  /* pick enclosed mass       */
+            r = 1.0 / rsqrt(rpow(x, -2.0 / 3.0) - 1); /* find enclosing radius    */
+            pickshell(Pos(p), NDIM, rsc * r);         /* pick position vector     */
+            do
+            {                          /* select from fn g(x)      */
+                x = xrandom(0.0, 1.0); /* for x in range 0:1       */
+                y = xrandom(0.0, 0.1); /* max of g(x) is 0.092     */
+            } while (y > x * x * rpow(1 - x * x, 3.5)); /* using von Neumann tech   */
+            v = x * rsqrt(2.0 / rsqrt(1 + r * r)); /* find resulting speed     */
+            pickshell(Vel(p), NDIM, vsc * v);      /* pick velocity vector     */
+            ADDMULVS(rcm, Pos(p), 1.0 / nbody);    /* accumulate cm position   */
+            ADDMULVS(vcm, Vel(p), 1.0 / nbody);    /* accumulate cm velocity   */
+        }
+        for (p = bodytab; p < bodytab + nbody; p++)
+        {                              /* loop over bodies again   */
+            SUBV(Pos(p), Pos(p), rcm); /* subtract cm position     */
+            SUBV(Vel(p), Vel(p), vcm); /* subtract cm velocity     */
+            if (NDIM == 3){
+                mpi_pos[(size_t)(p-bodytab)*NDIM] = Pos(p)[0];
+                mpi_pos[(size_t)(p-bodytab)*NDIM+1] = Pos(p)[1];
+                mpi_pos[(size_t)(p-bodytab)*NDIM+2] = Pos(p)[2];
+                mpi_vel[(size_t)(p-bodytab)*NDIM] = Vel(p)[0];
+                mpi_vel[(size_t)(p-bodytab)*NDIM+1] = Vel(p)[1];
+                mpi_vel[(size_t)(p-bodytab)*NDIM+2] = Vel(p)[2];
+            }
+            else if (NDIM == 2)
+            {
+                mpi_pos[(size_t)(p-bodytab)*NDIM] = Pos(p)[0];
+                mpi_pos[(size_t)(p-bodytab)*NDIM+1] = Pos(p)[1];
+                mpi_vel[(size_t)(p-bodytab)*NDIM] = Vel(p)[0];
+                mpi_vel[(size_t)(p-bodytab)*NDIM+1] = Vel(p)[1];
+            }
+        }        
     }
-    for (p = bodytab; p < bodytab+nbody; p++) { /* loop over bodies again   */
-        SUBV(Pos(p), Pos(p), rcm);              /* subtract cm position     */
-        SUBV(Vel(p), Vel(p), vcm);              /* subtract cm velocity     */
+
+    // send position and velocity to all processes from root
+    if (sizeof(real) == sizeof(float)){
+        MPI_Bcast(mpi_pos, nbody*NDIM, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(mpi_vel, nbody*NDIM, MPI_FLOAT, 0, MPI_COMM_WORLD);
     }
+    else if (sizeof(real) == sizeof(double))
+    {
+        MPI_Bcast(mpi_pos, nbody*NDIM, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        MPI_Bcast(mpi_vel, nbody*NDIM, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    }
+
+    if (mpi_rank != 0){
+        for (p = bodytab; p < bodytab + nbody; p++){
+            Type(p) = BODY;                          
+            Mass(p) = 1.0 / nbody;
+            if (NDIM == 3){
+                Pos(p)[0] = mpi_pos[(size_t)(p-bodytab)*NDIM];
+                Pos(p)[1] = mpi_pos[(size_t)(p-bodytab)*NDIM+1];
+                Pos(p)[2] = mpi_pos[(size_t)(p-bodytab)*NDIM+2];
+                Vel(p)[0] = mpi_vel[(size_t)(p-bodytab)*NDIM];
+                Vel(p)[1] = mpi_vel[(size_t)(p-bodytab)*NDIM+1];
+                Vel(p)[2] = mpi_vel[(size_t)(p-bodytab)*NDIM+2];
+            }
+            else if (NDIM == 2)
+            {
+                Pos(p)[0] = mpi_pos[(size_t)(p-bodytab)*NDIM] ;
+                Pos(p)[1] = mpi_pos[(size_t)(p-bodytab)*NDIM+1];
+                Vel(p)[0] = mpi_vel[(size_t)(p-bodytab)*NDIM];
+                Vel(p)[1] = mpi_vel[(size_t)(p-bodytab)*NDIM+1];
+            } 
+        }
+    }
+    
+
+    free(mpi_pos);
+    free(mpi_vel);
 }
+
+/*
+MPI_Datatype MPI_VECTOR; 
+
+void create_mpi_vector_type(){
+    if (sizeof(real) == sizeof(float)){
+        MPI_Type_vector(NDIM, 1, 1, MPI_FLOAT, &MPI_VECTOR); 
+    }
+    else if (sizeof(real) == sizeof(double))
+    {
+        MPI_Type_vector(NDIM, 1, 1, MPI_DOUBLE, &MPI_VECTOR); 
+    }
+    MPI_Commit(&MPI_VECTOR); 
+}
+
+MPI_Datatype MPI_POS_VEL; 
+
+void create_mpi_pos_vel_type(){
+    int block_lengths[] = {1,1}; // one mpi vector for each
+    MPI_Aint offsets[2]; 
+    MPI_Datatype types[2] = {MPI_VECTOR, MPI_VECTOR}; 
+
+    body 
+}
+
+*/
+
