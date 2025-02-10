@@ -9,6 +9,7 @@
 #include "getparam.h"
 #define global                                  /* don't default to extern  */
 #include "treecode.h"
+#include "omp.h"
 
 /*
  * Default values for input parameters.
@@ -60,6 +61,7 @@ local void testdata(void);                      /* generate test data       */
 
 int main(int argc, string argv[])
 {
+    double start_time = omp_get_wtime();
     initparam(argv, defv);                      /* initialize param access  */
     headline = defv[0] + 1;                     /* skip ";" in headline     */
     startrun();                                 /* get params & input data  */
@@ -81,6 +83,8 @@ int main(int argc, string argv[])
             output();                           /* and output results       */
         }
 #endif
+    double stop_time = omp_get_wtime();
+    printf("Time elapsed: %g sec\n", stop_time - start_time);
     return (0);                                 /* end with proper status   */
 }
 
