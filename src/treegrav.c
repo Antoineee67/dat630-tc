@@ -63,10 +63,6 @@ local void walksub(nodeptr *active_list, uint32_t active_list_len,
                    nodeptr current_node, real current_node_size, const vector current_node_midpoint,
                    cell_ll_entry_t *cell_list_tail, cell_ll_entry_t *body_list_tail, uint32_t depth) {
     depth++;
-    nodeptr q;
-    int k;
-    vector nmid;
-
     real poff = current_node_size / 4; /* precompute mid. offset   */
 
     if (Type(current_node) == CELL) {
@@ -74,35 +70,38 @@ local void walksub(nodeptr *active_list, uint32_t active_list_len,
         nodeptr points[10];
         int size = 0;
 
-        for (q = More(current_node); q != Next(current_node); q = Next(q)) {
+        for (nodeptr q = More(current_node); q != Next(current_node); q = Next(q)) {
             points[size] = q;
             size++;
             assert(size < sizeof(points) / sizeof(points[0]));
         }
 
         if (depth < 5) {
-#pragma omp parallel for private(q, nmid)
+#pragma omp parallel for
             for (int i = 0; i < size; i++) {
-                q = points[i];
+                nodeptr q = points[i];
+                vector nmid;
                 /* loop over all subcells   */
-                for (k = 0; k < NDIM; k++) /* locate each's midpoint   */
+                for (int k = 0; k < NDIM; k++) /* locate each's midpoint   */
                     nmid[k] = current_node_midpoint[k] + (Pos(q)[k] < current_node_midpoint[k] ? -poff : poff);
                 walktree(active_list, active_list_len, q, current_node_size / 2, nmid, cell_list_tail, body_list_tail,
                          depth);
             }
         } else {
             for (int i = 0; i < size; i++) {
-                q = points[i];
+                nodeptr q = points[i];
+                vector nmid;
                 /* loop over all subcells   */
-                for (k = 0; k < NDIM; k++) /* locate each's midpoint   */
+                for (int k = 0; k < NDIM; k++) /* locate each's midpoint   */
                     nmid[k] = current_node_midpoint[k] + (Pos(q)[k] < current_node_midpoint[k] ? -poff : poff);
                 walktree(active_list, active_list_len, q, current_node_size / 2, nmid, cell_list_tail, body_list_tail,
                          depth);
             }
         }
     } else {
+        vector nmid;
         /* extend virtual tree      */
-        for (k = 0; k < NDIM; k++) /* locate next midpoint     */
+        for (int k = 0; k < NDIM; k++) /* locate next midpoint     */
             nmid[k] = current_node_midpoint[k] + (Pos(current_node)[k] < current_node_midpoint[k] ? -poff : poff);
         walktree(active_list, active_list_len, current_node, current_node_size / 2, nmid, cell_list_tail,
                  body_list_tail, depth);
