@@ -5,11 +5,16 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include "komihash.h"
 
 #include "stdinc.h"
 #include "mathfns.h"
 #include "vectmath.h"
 #include "treedefs.h"
+#include "treecode.h"
+#include "mpi.h"
+
+#define OMP_DEPTH_THRESHOLD 6
 
 typedef struct cell_ll_entry_t {
     cell cell;
@@ -23,6 +28,8 @@ local bool accept(nodeptr, real, vector);
 local void walktree(nodeptr *active_list, uint32_t active_list_len,
                     nodeptr current_node, real current_node_size, vector current_node_midpoint,
                     cell_ll_entry_t *cell_list_tail, cell_ll_entry_t *body_list_tail, uint32_t depth);
+
+local void gravsum(bodyptr current_body, cell_ll_entry_t *cell_list_tail, cell_ll_entry_t *body_list_tail);
 
 static double longest_sumnode = 0;
 static uint32_t sumnode_calls = 0;
@@ -43,6 +50,7 @@ local cellptr interact; /* list of interactions     */
 /*
  * GRAVCALC: perform force calculation on all particles.
  */
+
 void gravcalc(void) {
     double cpustart;
     vector rmid;
@@ -52,12 +60,24 @@ void gravcalc(void) {
     longest_sumnode = 0;
     sumnode_calls = 0;
     memset(depths, 0, sizeof(depths));
-    walktree((nodeptr*) &root, 1,(nodeptr) root, rsize, rmid, NULL, NULL, 0); /* scan tree, update forces */
+    walktree((nodeptr *) &root, 1, (nodeptr) root, rsize, rmid, NULL, NULL, 0); /* scan tree, update forces */
     cpuforce = cputime() - cpustart; /* store CPU time w/o alloc */
 }
 
+static void walksubtree(nodeptr root_node, nodeptr *active_list, uint32_t active_list_len, real current_node_size,
+                        const real *current_node_midpoint, cell_ll_entry_t *cell_list_tail,
+                        cell_ll_entry_t *body_list_tail, uint32_t depth, real poff) {
+    if (depth == mpi_depth && mpi_rank != komihash(root_node->pos, sizeof(root_node->pos), 0) % mpi_numproc) {
+        // skip this subtree on this mpi process
+        return;
+    }
 
-local void gravsum(bodyptr current_body, cell_ll_entry_t *cell_list_tail, cell_ll_entry_t *body_list_tail);
+    vector nmid;
+    for (int k = 0; k < NDIM; k++) /* locate each's midpoint   */
+        nmid[k] = current_node_midpoint[k] + (Pos(root_node)[k] < current_node_midpoint[k] ? -poff : poff);
+    walktree(active_list, active_list_len, root_node, current_node_size / 2, nmid, cell_list_tail, body_list_tail,
+             depth);
+}
 
 local void walksub(nodeptr *active_list, uint32_t active_list_len,
                    nodeptr current_node, real current_node_size, const vector current_node_midpoint,
@@ -76,36 +96,25 @@ local void walksub(nodeptr *active_list, uint32_t active_list_len,
             assert(size < sizeof(points) / sizeof(points[0]));
         }
 
-        if (depth < 5) {
+
+        if (depth < omp_threshold) {
 #pragma omp parallel for
             for (int i = 0; i < size; i++) {
-                nodeptr q = points[i];
-                vector nmid;
-                /* loop over all subcells   */
-                for (int k = 0; k < NDIM; k++) /* locate each's midpoint   */
-                    nmid[k] = current_node_midpoint[k] + (Pos(q)[k] < current_node_midpoint[k] ? -poff : poff);
-                walktree(active_list, active_list_len, q, current_node_size / 2, nmid, cell_list_tail, body_list_tail,
-                         depth);
+                walksubtree(points[i], active_list, active_list_len, current_node_size, current_node_midpoint,
+                            cell_list_tail, body_list_tail,
+                            depth, poff);
             }
         } else {
             for (int i = 0; i < size; i++) {
-                nodeptr q = points[i];
-                vector nmid;
-                /* loop over all subcells   */
-                for (int k = 0; k < NDIM; k++) /* locate each's midpoint   */
-                    nmid[k] = current_node_midpoint[k] + (Pos(q)[k] < current_node_midpoint[k] ? -poff : poff);
-                walktree(active_list, active_list_len, q, current_node_size / 2, nmid, cell_list_tail, body_list_tail,
-                         depth);
+                walksubtree(points[i], active_list, active_list_len, current_node_size, current_node_midpoint,
+                            cell_list_tail, body_list_tail,
+                            depth, poff);
             }
         }
     } else {
-        vector nmid;
-        /* extend virtual tree      */
-        for (int k = 0; k < NDIM; k++) /* locate next midpoint     */
-            nmid[k] = current_node_midpoint[k] + (Pos(current_node)[k] < current_node_midpoint[k] ? -poff : poff);
-        walktree(active_list, active_list_len, current_node, current_node_size / 2, nmid, cell_list_tail,
-                 body_list_tail, depth);
-        /* and search next level    */
+        walksubtree(current_node, active_list, active_list_len, current_node_size, current_node_midpoint,
+                    cell_list_tail, body_list_tail,
+                    depth, poff);
     }
 }
 
@@ -294,6 +303,7 @@ local void gravsum(bodyptr current_body, cell_ll_entry_t *cell_list_tail, cell_l
     /* sum forces from bodies   */
     Phi(current_body) = phi0; /* store total potential    */
     SETV(Acc(current_body), acc0); /* and total acceleration   */
+    current_body->updated = TRUE; /* mark body as done        */
     //TODO: Do we want to keep track of this? Would need synchronization logic if so.
     //nbbcalc += interact + actlen - bptr;        /* count body-body forces   */
     //nbccalc += cptr - interact;                 /* count body-cell forces   */

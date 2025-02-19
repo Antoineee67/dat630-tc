@@ -5,6 +5,8 @@ set(CMAKE_CXX_STANDARD 20)
 
 find_package(OpenMP REQUIRED)
 
+find_package(MPI REQUIRED)
+
 add_executable(treecode)
 
 file(GLOB SOURCES
@@ -20,6 +22,7 @@ target_include_directories(treecode PRIVATE
 target_link_libraries(treecode PRIVATE
     m
     OpenMP::OpenMP_C
+    MPI::MPI_C
 )
 
 target_compile_definitions(treecode PRIVATE

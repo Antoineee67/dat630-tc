@@ -8,6 +8,9 @@
 #ifndef _treedefs_h
 #define _treedefs_h
 
+#define MPI_threshold 5
+#include "stdinc.h"
+
 /*
  * NODE: data common to BODY and CELL structures.
  */
@@ -38,6 +41,7 @@ typedef struct {
     vector vel;                 /* velocity of body */
     vector acc;                 /* acceleration of body */
     real phi;                   /* potential at body */
+    bool updated;               /* status in force calc */
 } body, *bodyptr;
 
 #define Vel(x)    (((bodyptr) (x))->vel)

@@ -45,8 +45,11 @@ void maketree(bodyptr btab, int nbody)
     root = makecell();                          /* allocate the root cell   */
     CLRV(Pos(root));                            /* initialize the midpoint  */
     expandbox(btab, nbody);                     /* and expand cell to fit   */
-    for (p = btab; p < btab+nbody; p++)         /* loop over all bodies     */
-        loadbody(p);                            /* insert each into tree    */
+    for (p = btab; p < btab+nbody; p++)         /* loop over all bodies     */ {
+        p->updated = FALSE;                      /* mark all for update      */
+        loadbody(p);                               /* insert each into tree    */
+    }
+
     bh86 = scanopt(options, "bh86");            /* set flags for alternate  */
     sw94 = scanopt(options, "sw94");            /* ...cell opening criteria */
     if (bh86 && sw94)                           /* can't have both at once  */
