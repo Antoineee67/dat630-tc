@@ -10,6 +10,7 @@
  * Always include stdio.h and stdlib.h.
  */
 
+#include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -79,6 +80,7 @@ typedef FILE *stream;                   /* note: stdio.h is included above  */
 #undef SINGLEPREC
 #undef MIXEDPREC
 typedef double real, *realptr;
+local const MPI_Datatype mpi_real_type = MPI_DOUBLE;
 #define Precision "DOUBLEPREC"
 #endif
 
@@ -86,6 +88,7 @@ typedef double real, *realptr;
 #undef DOUBLEPREC
 #undef SINGLEPREC
 typedef float *realptr, real;
+local const MPI_Datatype mpi_real_type = MPI_FLOAT;
 #define Precision "MIXEDPREC"
 #endif
 
@@ -93,6 +96,7 @@ typedef float *realptr, real;
 #undef DOUBLEPREC
 #undef MIXEDPREC
 typedef float real, *realptr;
+local const MPI_Datatype mpi_real_type = MPI_FLOAT;
 #define Precision "SINGLEPREC"
 #endif
 

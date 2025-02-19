@@ -6,7 +6,16 @@
 #ifndef _treecode_h
 #define _treecode_h
 
+#include <mpi.h>
+#include <stdint.h>
+
 #include "treedefs.h"
+
+typedef struct {
+ uint32_t index;
+ real phi;
+ vector acc;
+} body_update_t;
 
 /*
  * Parameters, state variables, and diagnostics for N-body integration.
@@ -45,6 +54,21 @@ global int nstep;                       /* number of time-steps             */
 global int nbody;                       /* number of bodies in system       */
 
 global bodyptr bodytab;                 /* points to array of bodies        */
+
+global body_update_t* local_body_updates_buffer;
+
+global body_update_t* all_body_updates_buffer;
+
+
+
+global int mpi_rank; 
+
+global int mpi_numproc;
+
+global MPI_Datatype mpi_body_update_type;
+
+global int mpi_depth;
+global int omp_threshold;
 
 /*
  * Prototypes for I/O routines.

@@ -58,6 +58,8 @@ void inputdata(void)
         error("inputdata: ndim = %d; expected %d\n", ndim, NDIM);
     in_real(instr, &tnow);                      /* read starting time       */
     bodytab = (bodyptr) allocate(nbody * sizeof(body));
+    local_body_updates_buffer = (body_update_t*) allocate(nbody * sizeof(body_update_t));
+    all_body_updates_buffer = (body_update_t*) allocate(nbody * sizeof(body_update_t));
                                                 /* allocate body array      */
     for (p = bodytab; p < bodytab+nbody; p++)   /* loop over all bodies     */
         in_real(instr, &Mass(p));               /* read mass of each        */
@@ -415,6 +417,8 @@ void restorestate(string file)
     saferead(&rsize, sizeof(real), str);
     saferead(&nbody, sizeof(int), str);
     bodytab = (bodyptr) allocate(nbody * sizeof(body));
+    local_body_updates_buffer = (body_update_t*) allocate(nbody * sizeof(body_update_t));
+    all_body_updates_buffer = (body_update_t*) allocate(nbody * sizeof(body_update_t));
     saferead(bodytab, nbody * sizeof(body), str);
     fclose(str);
 }
