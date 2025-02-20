@@ -144,7 +144,10 @@ int main(int argc, string argv[]) {
     if (mpi_rank == 0) {
         double stop_time = omp_get_wtime();
         printf("Time elapsed: %g sec\n", stop_time - start_time);
+        printf("This was run on %i MPI nodes", mpi_numproc);
     }
+
+
     MPI_Finalize();
     return (0); /* end with proper status   */
 }
