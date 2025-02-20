@@ -15,6 +15,11 @@
  * NODE: data common to BODY and CELL structures.
  */
 
+ typedef struct cell_ll_entry_t {
+    cell cell;
+    struct cell_ll_entry_t *priv;
+} cell_ll_entry_t;
+
 typedef struct _node {
     short type;                 /* code for node type */
     bool update;                /* status in force calc */

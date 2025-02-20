@@ -16,11 +16,6 @@
 
 #define OMP_DEPTH_THRESHOLD 6
 
-typedef struct cell_ll_entry_t {
-    cell cell;
-    struct cell_ll_entry_t *priv;
-} cell_ll_entry_t;
-
 /* Local routines to perform force calculations. */
 
 local bool accept(nodeptr, real, vector);
@@ -34,6 +29,9 @@ local void gravsum(bodyptr current_body, cell_ll_entry_t *cell_list_tail, cell_l
 static double longest_sumnode = 0;
 static uint32_t sumnode_calls = 0;
 static uint32_t depths[100] = {0};
+int size = 100;
+nodeptr body_list;
+int index = 0;
 
 /* Lists of active nodes and interactions. */
 
@@ -52,6 +50,7 @@ local cellptr interact; /* list of interactions     */
  */
 
 void gravcalc(void) {
+    //body_list = malloc(size * sizeof(node));
     double cpustart;
     vector rmid;
     cpustart = cputime(); /* record time, less alloc  */
@@ -173,6 +172,7 @@ local void walktree(nodeptr *active_list, uint32_t active_list_len,
         if (Type(current_node) != BODY) {
             error("walktree: recursion terminated with cell\n");
         }
+        //body_list[index++] = *current_node;
         gravsum((bodyptr) current_node, cell_list_tail, body_list_tail);
     }
 }
@@ -308,3 +308,5 @@ local void gravsum(bodyptr current_body, cell_ll_entry_t *cell_list_tail, cell_l
     //nbbcalc += interact + actlen - bptr;        /* count body-body forces   */
     //nbccalc += cptr - interact;                 /* count body-cell forces   */
 }
+
+
