@@ -10,13 +10,14 @@
 
 #define MPI_threshold 5
 #include "stdinc.h"
+#include "vectdefs.h"
 
 /*
  * NODE: data common to BODY and CELL structures.
  */
 
  typedef struct cell_ll_entry_t {
-    cell cell;
+    uint32_t index;
     struct cell_ll_entry_t *priv;
 } cell_ll_entry_t;
 

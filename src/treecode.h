@@ -55,6 +55,8 @@ global int nbody;                       /* number of bodies in system       */
 
 global bodyptr bodytab;                 /* points to array of bodies        */
 
+global cellptr celltab;
+
 global body_update_t* local_body_updates_buffer;
 
 global body_update_t* all_body_updates_buffer;

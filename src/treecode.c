@@ -279,6 +279,7 @@ local void testdata(void) {
     bodyptr p;
 
     bodytab = (bodyptr) allocate(nbody * sizeof(body));
+    celltab = (cellptr) allocate(nbody * sizeof(cell));
     local_body_updates_buffer = (body_update_t *) allocate(nbody * sizeof(body_update_t));
     all_body_updates_buffer = (body_update_t *) allocate(nbody * sizeof(body_update_t));
     /* alloc space for bodies   */

@@ -26,25 +26,6 @@ local void walktree(nodeptr *active_list, uint32_t active_list_len,
 
 local void gravsum(bodyptr current_body, cell_ll_entry_t *cell_list_tail, cell_ll_entry_t *body_list_tail);
 
-static double longest_sumnode = 0;
-static uint32_t sumnode_calls = 0;
-static uint32_t depths[100] = {0};
-int size = 100;
-nodeptr body_list;
-int index = 0;
-
-/* Lists of active nodes and interactions. */
-
-#if !defined(FACTIVE)
-#  define FACTIVE  0.75                         /* active list fudge factor */
-#endif
-
-local int actlen; /* length as allocated      */
-
-local nodeptr *active; /* list of nodes tested     */
-
-local cellptr interact; /* list of interactions     */
-
 /*
  * GRAVCALC: perform force calculation on all particles.
  */
@@ -56,9 +37,6 @@ void gravcalc(void) {
     cpustart = cputime(); /* record time, less alloc  */
     actmax = nbbcalc = nbccalc = 0; /* zero cumulative counters */
     CLRV(rmid); /* set center of root cell  */
-    longest_sumnode = 0;
-    sumnode_calls = 0;
-    memset(depths, 0, sizeof(depths));
     walktree((nodeptr *) &root, 1, (nodeptr) root, rsize, rmid, NULL, NULL, 0); /* scan tree, update forces */
     cpuforce = cputime() - cpustart; /* store CPU time w/o alloc */
 }
@@ -141,10 +119,7 @@ local void walktree(nodeptr *active_list, uint32_t active_list_len,
                 cell_ll_entry_t *new_entry = &free_enties[free_entry_index++];
                 new_entry->priv = cell_list_tail;
                 cell_list_tail = new_entry;
-                cellptr cptr = &new_entry->cell;
-                Mass(cptr) = Mass(active_node);
-                SETV(Pos(cptr), Pos(active_node));
-                SETM(Quad(cptr), Quad(active_node));
+                new_entry->index = (cellptr) active_node - celltab;
             } else {
                 for (nodeptr q = More(active_node); q != Next(active_node); q = Next(q)) {
                     assert(next_active_list_index < max_new_active_list_len);
@@ -156,10 +131,7 @@ local void walktree(nodeptr *active_list, uint32_t active_list_len,
                 cell_ll_entry_t *new_entry = &free_enties[free_entry_index++];
                 new_entry->priv = body_list_tail;
                 body_list_tail = new_entry;
-                cellptr bptr = &new_entry->cell;
-                real mass = Mass(active_node);
-                Mass(bptr) = mass;
-                SETV(Pos(bptr), Pos(active_node));
+                new_entry->index = (bodyptr) active_node - bodytab;
             }
         }
     }
@@ -172,7 +144,6 @@ local void walktree(nodeptr *active_list, uint32_t active_list_len,
         if (Type(current_node) != BODY) {
             error("walktree: recursion terminated with cell\n");
         }
-        //body_list[index++] = *current_node;
         gravsum((bodyptr) current_node, cell_list_tail, body_list_tail);
     }
 }
@@ -235,17 +206,21 @@ local bool accept(nodeptr c, real psize, vector pmid) {
  * SUMNODE: add up body-node interactions.
  */
 
-local void sumnode(cell_ll_entry_t *body_list_tail,
-                   vector pos0, real *phi0, vector acc0) {
-    cellptr p;
+local void sumnode(cell_ll_entry_t *node_list_tail,
+                   vector pos0, real *phi0, vector acc0, short type) {
+    nodeptr p;
     real eps2, dr2, drab, phi_p, mr3i;
     vector dr;
 
     eps2 = eps * eps; /* avoid extra multiplys    */
-    while (body_list_tail->priv != NULL) {
+    while (node_list_tail->priv != NULL) {
         /* loop over node list      */
-        p = &body_list_tail->cell;
-        body_list_tail = body_list_tail->priv;
+        if (type == BODY) {
+            p = (nodeptr)(bodytab + node_list_tail->index);
+        } else {
+            p = (nodeptr)(celltab + node_list_tail->index);
+        }
+        node_list_tail = node_list_tail->priv;
         DOTPSUBV(dr2, dr, Pos(p), pos0); /* compute separation       */
         /* and distance squared     */
         dr2 += eps2; /* add standard softening   */
@@ -270,7 +245,7 @@ local void sumcell(cell_ll_entry_t *cell_list_tail,
     eps2 = eps * eps;
     while (cell_list_tail != NULL) {
         /* loop over node list      */
-        p = &cell_list_tail->cell;
+        p = celltab + cell_list_tail->index;
         cell_list_tail = cell_list_tail->priv;
         DOTPSUBV(dr2, dr, Pos(p), pos0); /* do mono part of force    */
         dr2 += eps2;
@@ -297,9 +272,9 @@ local void gravsum(bodyptr current_body, cell_ll_entry_t *cell_list_tail, cell_l
         sumcell(cell_list_tail, pos0, &phi0, acc0);
         /* sum cell forces w quads  */
     else /* not using quad moments   */
-        sumnode(cell_list_tail, pos0, &phi0, acc0);
+        sumnode(cell_list_tail, pos0, &phi0, acc0, CELL);
     /* sum cell forces wo quads */
-    sumnode(body_list_tail, pos0, &phi0, acc0);
+    sumnode(body_list_tail, pos0, &phi0, acc0, BODY);
     /* sum forces from bodies   */
     Phi(current_body) = phi0; /* store total potential    */
     SETV(Acc(current_body), acc0); /* and total acceleration   */

@@ -3,6 +3,8 @@
 /* Copyright (c) 1999 by Joshua E. Barnes, Tokyo, JAPAN.                    */
 /****************************************************************************/
 
+#include <treecode.h>
+
 #include "stdinc.h"
 #include "mathfns.h"
 #include "vectmath.h"
@@ -41,7 +43,7 @@ void maketree(bodyptr btab, int nbody)
     int i;
 
     cpustart = cputime();                       /* record time at start     */
-    newtree();                                  /* flush existing tree, etc */
+    ncell = 0;                                  /* flush existing tree, etc */
     root = makecell();                          /* allocate the root cell   */
     CLRV(Pos(root));                            /* initialize the midpoint  */
     expandbox(btab, nbody);                     /* and expand cell to fit   */
@@ -97,12 +99,7 @@ local cellptr makecell(void)
     cellptr c;
     int i;
 
-    if (freecell == NULL)                       /* if no free cells left    */
-        c = (cellptr) allocate(sizeof(cell));   /* then allocate a new one  */
-    else {                                      /* else use existing cell   */
-        c = (cellptr) freecell;                 /* take the one in front    */
-        freecell = Next(c);                     /* and go on to next one    */
-    }
+    c = &celltab[ncell];                         /* get cell from array      */
     Type(c) = CELL;                             /* initialize node type     */
     Update(c) = FALSE;                          /* and force update flag    */
     for (i = 0; i < NSUB; i++)                  /* loop over subcells       */
