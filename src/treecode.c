@@ -122,7 +122,8 @@ int main(int argc, string argv[]) {
     if (nstep == 0) {
         /* if data just initialized */
         treeforce(); /* do complete calculation  */
-        dataExchange();
+        if (mpi_numproc > 1)
+            dataExchange();
         if (mpi_rank == 0)
             output(); /* and report diagnostics   */
     }
@@ -192,7 +193,8 @@ local void stepsystem(void) {
         ADDMULVS(Pos(p), Vel(p), dtime); /* advance r by 1 step      */
     }
     treeforce(); /* perform force calc.      */
-    dataExchange();
+    if (mpi_numproc > 1)
+        dataExchange();
     for (p = bodytab; p < bodytab + nbody; p++) {
         /* loop over all bodies     */
         ADDMULVS(Vel(p), Acc(p), 0.5 * dtime); /* advance v by 1/2 step    */

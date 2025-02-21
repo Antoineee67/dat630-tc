@@ -1,13 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=treecode
-#SBATCH -A naiss2024-5-102 #Check if correct project
-#SBATCH -p shared
+#SBATCH -A C3SE2024-2-18 -p vera #Check if correct project
 #SBATCH -t 0-00:05:00 #Max runtime of 5 min
 #SBATCH --output=output_%j.txt
-#SBATCH --nodes=2 # Number of nodes
+#SBATCH --nodes=4 # Number of nodes
 #SBATCH --ntasks-per-node=4 # 4 MPI tasks (ranks) per node
 #SBATCH --cpus-per-task=8 # 8 OpenMP threads per MPI rank
-module spider openmpi/4.1.2-gcc9.3.0
 export OMP_NUM_THREADS=8 # Set number of OpenMP threads per MPI rank
 
 srun ./treecode nbody=100000 tstop=1
