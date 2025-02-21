@@ -145,6 +145,14 @@ int main(int argc, string argv[]) {
         double stop_time = omp_get_wtime();
         printf("Time elapsed: %g sec\n", stop_time - start_time);
         printf("This was run on %i MPI nodes", mpi_numproc);
+
+        FILE* benchmarkResult = fopen("benchmark.txt", "a");
+        //Write header if new file
+        if (ftell(benchmarkResult) == 0)
+            fprintf(benchmarkResult, "runtime\tnbody\ttstop\tnstep\ttnow\tmpi_nodes\tmpi_depth\tomp_threashold\n");
+
+        fprintf(benchmarkResult, "%f\t%i\t%f\t%i\t%f\t%i\t%i\t%i\n",stop_time, nbody, tstop, nstep, tnow, mpi_numproc, mpi_depth, omp_threshold);
+
     }
 
 
