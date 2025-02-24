@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 /*
  * NULL: value for null pointers, normally defined by stdio.h.
@@ -33,11 +34,9 @@
  * BOOL, TRUE, FALSE: standard names for logical values.
  */
 
-typedef short int bool;
-
 #if !defined(TRUE)
-#define TRUE  ((bool) 1)
-#define FALSE ((bool) 0)
+#define TRUE  (true)
+#define FALSE (false)
 #endif
 
 /*

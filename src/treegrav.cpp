@@ -4,6 +4,7 @@
 /****************************************************************************/
 
 #include <assert.h>
+#include <cudagravsum.cuh>
 #include <stdint.h>
 #include "komihash.h"
 
@@ -144,7 +145,8 @@ local void walktree(nodeptr *active_list, uint32_t active_list_len,
         if (Type(current_node) != BODY) {
             error("walktree: recursion terminated with cell\n");
         }
-        gravsum((bodyptr) current_node, cell_list_tail, body_list_tail);
+        //gravsum((bodyptr) current_node, cell_list_tail, body_list_tail);
+        cuda_gravsum((bodyptr) current_node, cell_list_tail, body_list_tail);
     }
 }
 

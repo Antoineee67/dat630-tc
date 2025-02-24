@@ -403,6 +403,7 @@ void restorestate(string file)
 #endif
     saferead(&usequad, sizeof(bool), str);
     saferead(&eps, sizeof(real), str);
+    eps2 = eps * eps;
     saferead(&nchars, sizeof(int), str);
     options = (string) allocate(nchars * sizeof(char));
     saferead(options, nchars * sizeof(char), str);

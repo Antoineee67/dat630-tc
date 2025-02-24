@@ -19,6 +19,7 @@
 
 #include "omp.h"
 #include "mpi.h"
+#include "cudagravsum.cuh"
 
 
 /*
@@ -119,6 +120,8 @@ int main(int argc, string argv[]) {
         start_time = omp_get_wtime();
         startoutput();
     } /* activate output code     */
+
+    cuda_gravsum_init();
     if (nstep == 0) {
         /* if data just initialized */
         treeforce(); /* do complete calculation  */
@@ -159,6 +162,7 @@ local void treeforce(void) {
     for (p = bodytab; p < bodytab + nbody; p++) /* loop over all bodies     */
         Update(p) = TRUE; /* update all forces        */
     maketree(bodytab, nbody); /* construct tree structure */
+    cuda_update_body_cell_data();
     gravcalc(); /* compute initial forces   */
     if (mpi_rank == 0)
         forcereport(); /* print force statistics   */
@@ -207,6 +211,7 @@ local void startrun(void) {
     if (strnull(getparam("restore"))) {
         /* if starting a new run    */
         eps = getdparam("eps"); /* get input parameters     */
+        eps2 = eps * eps; /* and square of eps        */
 #if defined(USEFREQ)
         freq = getdparam("freq");
 #else
@@ -241,7 +246,10 @@ local void startrun(void) {
         /* else restart old run     */
         restorestate(getparam("restore")); /* read in state file       */
         if (getparamstat("eps") & ARGPARAM) /* if given, set new params */
-            eps = getdparam("eps");
+            {
+                eps = getdparam("eps");
+                eps2 = eps * eps;
+            }
 #if !defined(QUICKSCAN)
         if (getparamstat("theta") & ARGPARAM)
             theta = getdparam("theta");

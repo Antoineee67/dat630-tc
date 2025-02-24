@@ -10,6 +10,7 @@ add_executable(treecode)
 
 file(GLOB SOURCES
         "src/*.c"
+        "src/*.cpp"
         "src/*.cu"
 )
 

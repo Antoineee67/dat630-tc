@@ -10,6 +10,7 @@
 
 #define MPI_threshold 5
 #include "stdinc.h"
+#include <stdint.h>
 #include "vectdefs.h"
 
 /*
@@ -101,6 +102,7 @@ global string options;                  /* various option keywords          */
 global bool usequad;                    /* use quadrupole corrections       */
 
 global real eps;                        /* density smoothing parameter      */
+global real eps2;
 
 /*
  * Tree construction.
