@@ -377,7 +377,12 @@ local void dataExchange() {
                exchange_count, local_changes_count, mpi_rank);
     }
 
-    body_update_t all_body_updates_buffer_local[total_changes];
+    //body_update_t all_body_updates_buffer_local[total_changes];
+    //It seems like we get stack overflow? when allocating to large of an array on the stack. For some cases total_changes can be ~500 000
+
+    //Malloc solves this but could be slower?
+    body_update_t *all_body_updates_buffer_local = malloc(total_changes*sizeof(body_update_t));
+
 
     // Compute displacements
     int displs[mpi_numproc];
@@ -396,4 +401,6 @@ local void dataExchange() {
         body->phi = update->phi;
         SETV(body->acc, update->acc);
     }
+
+    free(all_body_updates_buffer_local);
 }
