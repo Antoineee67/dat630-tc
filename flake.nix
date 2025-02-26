@@ -2,7 +2,7 @@
   description = "Cuda development environment";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
+    nixpkgs.url = "nixpkgs/nixos-24.11";
   };
 
   nixConfig = {

@@ -11,6 +11,7 @@
 #include "helper_math.h"
 #include <thrust/reduce.h>
 #include <thrust/execution_policy.h>
+#include <thrust/device_ptr.h>
 
 typedef struct {
     vector acc;
@@ -96,23 +97,28 @@ void cuda_gravsum(bodyptr current_body, cell_ll_entry_t *cell_list_tail, cell_ll
         curr_list_entry = curr_list_entry->priv;
     }
 
+    const uint32_t total_count = body_count + cell_count;
+
     uint32_t *device_body_cell_index_list;
 
-    cudaMalloc(&device_body_cell_index_list,  body_count + cell_count * sizeof(uint32_t));
-    cudaMemcpy(device_body_cell_index_list, body_cell_index_array, body_count + cell_count * sizeof(uint32_t), cudaMemcpyHostToDevice);
+    cudaMalloc(&device_body_cell_index_list,  total_count * sizeof(uint32_t));
+    cudaMemcpy(device_body_cell_index_list, body_cell_index_array, total_count * sizeof(uint32_t), cudaMemcpyHostToDevice);
 
     real *device_phi_result_list;
     cuda_vector *device_acc_result_list;
 
-    cudaMalloc(&device_phi_result_list, body_count + cell_count * sizeof(real));
-    cudaMalloc(&device_acc_result_list, body_count + cell_count * sizeof(cuda_vector));
+    cudaMalloc(&device_phi_result_list, total_count * sizeof(real));
+    cudaMalloc(&device_acc_result_list, total_count * sizeof(cuda_vector));
 
 
     //TODO: Look over the block and grid size
-    cuda_node_calc_kernel<<<1, body_count + cell_count>>>(current_body_index, eps2, device_body_cell_index_list, device_body_cell_mass_list, device_body_cell_pos_list, device_phi_result_list, device_acc_result_list);
+    cuda_node_calc_kernel<<<1, total_count>>>(current_body_index, eps2, device_body_cell_index_list, device_body_cell_mass_list, device_body_cell_pos_list, device_phi_result_list, device_acc_result_list);
 
-    real phi = thrust::reduce(thrust::device, device_phi_result_list, device_phi_result_list + body_count + cell_count);
-    cuda_vector acc = thrust::reduce(thrust::device,device_acc_result_list, device_acc_result_list + body_count + cell_count);
+    thrust::device_ptr<real> thrust_device_phi_result_list(device_phi_result_list);
+    thrust::device_ptr<cuda_vector> thrust_device_acc_result_list(device_acc_result_list);
+
+    real phi = thrust::reduce(thrust_device_phi_result_list, thrust_device_phi_result_list + total_count);
+    cuda_vector acc = thrust::reduce(thrust_device_acc_result_list, thrust_device_acc_result_list + total_count);
 
     current_body->phi = phi;
     SETV(current_body->acc, CUDA_VECTOR_TO_VECTOR(acc));
