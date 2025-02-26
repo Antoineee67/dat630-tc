@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+export OMP_NUM_THREADS=1 # Set number of OpenMP threads per MPI rank
+
+
+#mpirun -N 4 ../cmake-build-release/treecode nbody=100000 mpi_depth=5 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+#mpirun -N 4 ../cmake-build-release/treecode nbody=100000 mpi_depth=6 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+#mpirun -N 4 ../cmake-build-release/treecode nbody=100000 mpi_depth=7 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+#mpirun -N 4 ../cmake-build-release/treecode nbody=100000 mpi_depth=8 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+#mpirun -N 4 ../cmake-build-release/treecode nbody=100000 mpi_depth=9 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+#mpirun -N 4 ../cmake-build-release/treecode nbody=100000 mpi_depth=10 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+#mpirun -N 4 ../cmake-build-release/treecode nbody=100000 mpi_depth=11 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+mpirun -N 4 ../cmake-build-release/treecode nbody=100000 mpi_depth=12 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+
+mpirun -N 4 ../cmake-build-release/treecode nbody=300000 mpi_depth=5 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+mpirun -N 4 ../cmake-build-release/treecode nbody=300000 mpi_depth=6 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+mpirun -N 4 ../cmake-build-release/treecode nbody=300000 mpi_depth=7 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+mpirun -N 4 ../cmake-build-release/treecode nbody=300000 mpi_depth=8 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+mpirun -N 4 ../cmake-build-release/treecode nbody=300000 mpi_depth=9 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+mpirun -N 4 ../cmake-build-release/treecode nbody=300000 mpi_depth=10 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+mpirun -N 4 ../cmake-build-release/treecode nbody=300000 mpi_depth=11 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+mpirun -N 4 ../cmake-build-release/treecode nbody=300000 mpi_depth=12 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+
+mpirun -N 4 ../cmake-build-release/treecode nbody=500000 mpi_depth=5 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+mpirun -N 4 ../cmake-build-release/treecode nbody=500000 mpi_depth=6 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+mpirun -N 4 ../cmake-build-release/treecode nbody=500000 mpi_depth=7 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+mpirun -N 4 ../cmake-build-release/treecode nbody=500000 mpi_depth=8 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+mpirun -N 4 ../cmake-build-release/treecode nbody=500000 mpi_depth=9 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+mpirun -N 4 ../cmake-build-release/treecode nbody=500000 mpi_depth=10 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+mpirun -N 4 ../cmake-build-release/treecode nbody=500000 mpi_depth=11 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt
+mpirun -N 4 ../cmake-build-release/treecode nbody=500000 mpi_depth=12 tstop=0.3 omp_threshold=0 benchmark=mpi_depth_data.txt

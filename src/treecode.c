@@ -34,6 +34,7 @@ string defv[] = {
 #endif
     "in=", ";Input file with initial conditions",
     "out=", ";Output file of N-body frames",
+    "benchmark=", ";File to save benchmark data in",
 #if defined(USEFREQ)
     "freq=32.0",                ";Leapfrog integration frequency",
 #else
@@ -69,6 +70,10 @@ local void stepsystem(void); /* advance by one time-step */
 local void startrun(void); /* initialize system state  */
 local void testdata(void); /* generate test data       */
 local void dataExchange(); /* exchange data between processes */
+
+local int max_bodies_exchanged = 0 ;
+
+local int least_bodies_exchanged = 2147483647;
 
 void create_mpi_body_update_type(MPI_Datatype *mpi_body_update_type) {
     // Define the lengths of each block
@@ -147,12 +152,17 @@ int main(int argc, string argv[]) {
         printf("Time elapsed: %g sec\n", stop_time - start_time);
         printf("This was run on %i MPI nodes", mpi_numproc);
 
-        FILE* benchmarkResult = fopen("benchmark.txt", "a");
-        //Write header if new file
-        if (ftell(benchmarkResult) == 0)
-            fprintf(benchmarkResult, "runtime\tnbody\ttstop\tnstep\ttnow\tmpi_nodes\tmpi_depth\tomp_threashold\n");
+        if (!strnull(benchmarkFile)) {
+            FILE* benchmarkResult = fopen(benchmarkFile, "a");
+            //Write header if new file
+            if (ftell(benchmarkResult) == 0)
+                fprintf(benchmarkResult, "runtime\tnbody\ttstop\tnstep\ttnow\tmpi_nodes\tmpi_depth\tomp_threashold\tmax_exchanged_bodies\tleast_exchanged_bodies\n");
 
-        fprintf(benchmarkResult, "%f\t%i\t%f\t%i\t%f\t%i\t%i\t%i\n",stop_time, nbody, tstop, nstep, tnow, mpi_numproc, mpi_depth, omp_threshold);
+            fprintf(benchmarkResult, "%f\t%i\t%f\t%i\t%f\t%i\t%i\t%i\t%i\t%i\n",stop_time-start_time, nbody,
+                tstop, nstep, tnow, mpi_numproc, mpi_depth, omp_threshold, max_bodies_exchanged, least_bodies_exchanged);
+        }
+
+
 
     }
 
@@ -210,6 +220,7 @@ local void stepsystem(void) {
 local void startrun(void) {
     mpi_depth = getiparam("mpi_depth");
     omp_threshold = getiparam("omp_threshold");
+
 #if !defined(USEFREQ)
     double dt1, dt2;
 #endif
@@ -217,6 +228,8 @@ local void startrun(void) {
     infile = getparam("in"); /* set I/O file names       */
     outfile = getparam("out");
     savefile = getparam("save");
+    benchmarkFile = getparam("benchmark");
+
     if (strnull(getparam("restore"))) {
         /* if starting a new run    */
         eps = getdparam("eps"); /* get input parameters     */
@@ -348,7 +361,16 @@ local void dataExchange() {
     int32_t total_changes = 0;
     for (int i = 0; i < mpi_numproc; i++) {
         total_changes += receive_count[i];
+
+        //Save the least amount of exchanged data and the maximum amount.
+        if (receive_count[i] < least_bodies_exchanged)
+            least_bodies_exchanged = receive_count[i];
+
+        if (receive_count[i] > max_bodies_exchanged)
+            max_bodies_exchanged = receive_count[i];
     }
+
+
 
     if (total_changes != nbody && mpi_rank == 0) {
         printf("Total changes: %d, nbody: %d, exchange count %d, local changes %d, rank %d\n", total_changes, nbody,

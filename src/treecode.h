@@ -65,6 +65,8 @@ global int mpi_rank;
 
 global int mpi_numproc;
 
+global string benchmarkFile;
+
 global MPI_Datatype mpi_body_update_type;
 
 global int mpi_depth;
