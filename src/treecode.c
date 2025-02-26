@@ -15,6 +15,7 @@
 #include "treedefs.h"
 #include <stdbool.h>
 #include <stdint.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "omp.h"
@@ -60,6 +61,8 @@ string defv[] = {
     "mpi_depth=5", ";MPI threshold for which tree depth to filter by MPI node",
     "omp_threshold=6",
     ";OMP threshold to which tree depth to parallelize. Below this depth new threads are not created",
+    "random_seed=false",
+    ";Set if seed should be randomly generated.",
     NULL,
 };
 
@@ -70,6 +73,8 @@ local void stepsystem(void); /* advance by one time-step */
 local void startrun(void); /* initialize system state  */
 local void testdata(void); /* generate test data       */
 local void dataExchange(); /* exchange data between processes */
+
+local int seed;
 
 local int max_bodies_exchanged = 0 ;
 
@@ -156,10 +161,10 @@ int main(int argc, string argv[]) {
             FILE* benchmarkResult = fopen(benchmarkFile, "a");
             //Write header if new file
             if (ftell(benchmarkResult) == 0)
-                fprintf(benchmarkResult, "runtime\tnbody\ttstop\tnstep\ttnow\tmpi_nodes\tmpi_depth\tomp_threashold\tmax_exchanged_bodies\tleast_exchanged_bodies\n");
+                fprintf(benchmarkResult, "runtime\tnbody\ttstop\tnstep\ttnow\tmpi_nodes\tmpi_depth\tomp_threashold\tmax_exchanged_bodies\tleast_exchanged_bodies\tseed\n");
 
-            fprintf(benchmarkResult, "%f\t%i\t%f\t%i\t%f\t%i\t%i\t%i\t%i\t%i\n",stop_time-start_time, nbody,
-                tstop, nstep, tnow, mpi_numproc, mpi_depth, omp_threshold, max_bodies_exchanged, least_bodies_exchanged);
+            fprintf(benchmarkResult, "%f\t%i\t%f\t%i\t%f\t%i\t%i\t%i\t%i\t%i\t%i\n",stop_time-start_time, nbody,
+                tstop, nstep, tnow, mpi_numproc, mpi_depth, omp_threshold, max_bodies_exchanged, least_bodies_exchanged, seed);
         }
 
 
@@ -256,7 +261,13 @@ local void startrun(void) {
             nbody = getiparam("nbody"); /* get number of bodies     */
             if (nbody < 1) /* check for silly values   */
                 error("startrun: absurd value for nbody\n");
-            srandom(getiparam("seed")); /* set random number gen.   */
+
+            if (getbparam("random_seed"))
+                seed = time(NULL);
+            else
+                seed = getiparam("seed");
+
+            srandom(seed); /* set random number gen.   */
             testdata(); /* and make plummer model   */
             tnow = 0.0; /* reset elapsed model time */
         }
