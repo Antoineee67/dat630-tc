@@ -11,7 +11,7 @@
 #include "treecode.h"
 
 #include <assert.h>
-#include <cuda_runtime_api.h>
+//#include <cuda_runtime_api.h>
 
 #include "treedefs.h"
 #include <stdbool.h>
@@ -105,7 +105,7 @@ int main(int argc, string argv[]) {
     create_mpi_body_update_type(&mpi_body_update_type);
 
     int deviceCount;
-    cudaGetDeviceCount(&deviceCount);
+    //cudaGetDeviceCount(&deviceCount);
     if (deviceCount == 0) {
         fprintf(stderr, "No CUDA devices found\n");
         return 1;
@@ -172,6 +172,7 @@ local void treeforce(void) {
     maketree(bodytab, nbody); /* construct tree structure */
     cuda_update_body_cell_data();
     gravcalc(); /* compute initial forces   */
+    cuda_gravsum_dispatch();
     if (mpi_rank == 0)
         forcereport(); /* print force statistics   */
 }

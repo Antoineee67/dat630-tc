@@ -7,5 +7,7 @@ void cuda_gravsum(bodyptr current_body, cell_ll_entry_t *cell_list_tail, cell_ll
 
 void cuda_gravsum_init();
 
+void cuda_gravsum_dispatch();
+
 void cuda_update_body_cell_data();
 #endif //CUDAGRAVSUM_H
