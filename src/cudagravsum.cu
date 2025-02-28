@@ -173,14 +173,22 @@ void cuda_gravsum_dispatch()
         bodiesToProcess, cudaMemcpyHostToDevice, localCudaStream);
 
 
-    cudaMemcpyAttributes attrList[] = {cudaMemcpyAttributes{cudaMemcpySrcAccessOrderAny, {}, {}, cudaMemcpyHostToDevice}};
-    size_t attrIndx[] = {0};
+    //cudaMemcpyAttributes attrList[] = {cudaMemcpyAttributes{cudaMemcpySrcAccessOrderAny, {}, {}, cudaMemcpyHostToDevice}};
+    //size_t attrIndx[] = {0};
 
-    cudaMemcpyBatchAsync(cuda_grav_pack_list.device_body_cell_index_array.data(), cuda_grav_pack_list.body_cell_index_array.data(),
-         cuda_grav_pack_list.device_body_cell_index_array_size.data(), bodiesToProcess, attrList,
-         attrIndx, 1, &failIndx, localCudaStream
-         );
-    printf("%lu", failIndx);
+    //cudaMemcpyBatchAsync(cuda_grav_pack_list.device_body_cell_index_array.data(), cuda_grav_pack_list.body_cell_index_array.data(),
+    //     cuda_grav_pack_list.device_body_cell_index_array_size.data(), bodiesToProcess, attrList,
+    //     attrIndx, 1, &failIndx, localCudaStream
+    //     );
+    //printf("%lu", failIndx);
+
+    for (int i = 0; i < bodiesToProcess; i++)
+    {
+        cudaMemcpyAsync(cuda_grav_pack_list.device_body_cell_index_array[i], cuda_grav_pack_list.body_cell_index_array[i], 
+        cuda_grav_pack_list.device_body_cell_index_array_size[i], cudaMemcpyDeviceToHost, localCudaStream);
+    }
+
+
 
 
     cudaMalloc(&cuda_grav_pack_list.device_phi_out_list, bodiesToProcess * sizeof(real));
