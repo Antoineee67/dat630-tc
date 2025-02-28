@@ -161,10 +161,10 @@ int main(int argc, string argv[]) {
             FILE* benchmarkResult = fopen(benchmarkFile, "a");
             //Write header if new file
             if (ftell(benchmarkResult) == 0)
-                fprintf(benchmarkResult, "runtime\tnbody\ttstop\tnstep\ttnow\tmpi_nodes\tmpi_depth\tomp_threashold\tmax_exchanged_bodies\tleast_exchanged_bodies\tseed\n");
+                fprintf(benchmarkResult, "runtime\tnbody\ttstop\tnstep\ttnow\tmpi_nodes\tmpi_depth\tomp_threashold\tmax_exchanged_bodies\tleast_exchanged_bodies\tseed\tomp_threads\n");
 
-            fprintf(benchmarkResult, "%f\t%i\t%f\t%i\t%f\t%i\t%i\t%i\t%i\t%i\t%i\n",stop_time-start_time, nbody,
-                tstop, nstep, tnow, mpi_numproc, mpi_depth, omp_threshold, max_bodies_exchanged, least_bodies_exchanged, seed);
+            fprintf(benchmarkResult, "%f\t%i\t%f\t%i\t%f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\n",stop_time-start_time, nbody,
+                tstop, nstep, tnow, mpi_numproc, mpi_depth, omp_threshold, max_bodies_exchanged, least_bodies_exchanged, seed, omp_get_max_threads());
         }
 
 
