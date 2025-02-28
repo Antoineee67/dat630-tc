@@ -8,8 +8,8 @@
 
 #include <mpi.h>
 #include <stdint.h>
-
 #include "treedefs.h"
+#include <cstddef>
 
 typedef struct {
  uint32_t index;
