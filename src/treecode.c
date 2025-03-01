@@ -80,6 +80,8 @@ local int max_bodies_exchanged = 0 ;
 
 local int least_bodies_exchanged = 2147483647;
 
+local char* local_mpi_size;
+
 void create_mpi_body_update_type(MPI_Datatype *mpi_body_update_type) {
     // Define the lengths of each block
     int lengths[3] = {1, 1, NDIM};
@@ -110,6 +112,10 @@ int main(int argc, string argv[]) {
     MPI_Init(NULL, NULL);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_numproc);
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+
+    local_mpi_size = getenv("OMPI_COMM_WORLD_LOCAL_SIZE");
+
+
     create_mpi_body_update_type(&mpi_body_update_type);
 
 
@@ -161,10 +167,10 @@ int main(int argc, string argv[]) {
             FILE* benchmarkResult = fopen(benchmarkFile, "a");
             //Write header if new file
             if (ftell(benchmarkResult) == 0)
-                fprintf(benchmarkResult, "runtime\tnbody\ttstop\tnstep\ttnow\tmpi_nodes\tmpi_depth\tomp_threashold\tmax_exchanged_bodies\tleast_exchanged_bodies\tseed\tomp_threads\n");
+                fprintf(benchmarkResult, "runtime\tnbody\ttstop\tnstep\ttnow\tmpi_nodes\tmpi_depth\tomp_threashold\tmax_exchanged_bodies\tleast_exchanged_bodies\tseed\tomp_threads\tmpi_num_node_local_proc\n");
 
-            fprintf(benchmarkResult, "%f\t%i\t%f\t%i\t%f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\n",stop_time-start_time, nbody,
-                tstop, nstep, tnow, mpi_numproc, mpi_depth, omp_threshold, max_bodies_exchanged, least_bodies_exchanged, seed, omp_get_max_threads());
+            fprintf(benchmarkResult, "%f\t%i\t%f\t%i\t%f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%s\n",stop_time-start_time, nbody,
+                tstop, nstep, tnow, mpi_numproc, mpi_depth, omp_threshold, max_bodies_exchanged, least_bodies_exchanged, seed, omp_get_max_threads(), local_mpi_size);
         }
 
 
