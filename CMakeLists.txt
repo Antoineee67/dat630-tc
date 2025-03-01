@@ -18,14 +18,19 @@ target_sources(treecode PRIVATE ${SOURCES})
 
 target_include_directories(treecode PRIVATE
         "src"
+        "/usr/local/cuda/targets/x86_64-linux/include"
+
 )
+
 
 
 target_link_libraries(treecode PRIVATE
         m
-        OpenMP::OpenMP_C
-        MPI::MPI_C
+        OpenMP::OpenMP_CXX
+        MPI::MPI_CXX
 )
+
+
 
 target_compile_definitions(treecode PRIVATE
         LINUX
