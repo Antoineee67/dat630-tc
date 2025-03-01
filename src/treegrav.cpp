@@ -14,6 +14,7 @@
 #include "treedefs.h"
 #include "treecode.h"
 #include "mpi.h"
+#include <omp.h>
 
 #define OMP_DEPTH_THRESHOLD 6
 
@@ -76,8 +77,13 @@ local void walksub(nodeptr *active_list, uint32_t active_list_len,
 
 
         if (depth < omp_threshold) {
-#pragma omp parallel for
+            #pragma omp parallel for
             for (int i = 0; i < size; i++) {
+                int nt = omp_get_num_threads();
+                if (nt>1){
+                    printf("Number of threads (inside parallel): %d\n", nt);                    
+                }
+
                 walksubtree(points[i], active_list, active_list_len, current_node_size, current_node_midpoint,
                             cell_list_tail, body_list_tail,
                             depth, poff);
@@ -226,7 +232,7 @@ local void sumnode(cell_ll_entry_t *node_list_tail,
         DOTPSUBV(dr2, dr, Pos(p), pos0); /* compute separation       */
         /* and distance squared     */
         dr2 += eps2; /* add standard softening   */
-        drab = rsqrt(dr2); /* form scalar "distance"   */
+        drab = sqrtf(dr2); /* form scalar "distance"   */
         phi_p = Mass(p) / drab; /* get partial potential    */
         *phi0 -= phi_p; /* decrement tot potential  */
         mr3i = phi_p / dr2; /* form scale factor for dr */
@@ -251,7 +257,7 @@ local void sumcell(cell_ll_entry_t *cell_list_tail,
         cell_list_tail = cell_list_tail->priv;
         DOTPSUBV(dr2, dr, Pos(p), pos0); /* do mono part of force    */
         dr2 += eps2;
-        drab = rsqrt(dr2);
+        drab = sqrtf(dr2);
         phi_p = Mass(p) / drab;
         mr3i = phi_p / dr2;
         DOTPMULMV(drqdr, qdr, Quad(p), dr); /* do quad part of force    */

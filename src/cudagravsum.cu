@@ -4,6 +4,7 @@
 #include <vector>
 #include <vectdefs.h>
 #include <vectmath.h>
+#include <cmath>
 
 
 #undef Update
@@ -48,27 +49,6 @@ typedef struct {
 #error "NDIM must be 2, 3, or 4"
 #endif
 
-/*struct cuda_grav_pack
-{
-    uint32_t *body_cell_index_array; //ptr to body & cell array with indices that refer to correct body/cell.
-    uint32_t *device_body_cell_index_array; //equivelent pointer but for the cuda device.
-    uint32_t total_count; //length of above arrays.
-    bodyptr current_body;
-
-};*/
-
-struct cuda_grav_pack_soa
-{
-    std::vector<uint32_t*> body_cell_index_array; //ptr to body & cell array with indices that refer to correct body/cell.
-    std::vector<uint32_t*> device_body_cell_index_array; //equivelent pointer but for the cuda device.
-    std::vector<size_t> device_body_cell_index_array_size; //byte size of above arrays
-    uint32_t** device_body_cell_index_array_pointer_list; //Array to hold the device body cell index arrays.
-    std::vector<uint32_t> total_count; //length of above arrays.
-    uint32_t* device_total_count; //pointer to device of above array;
-    std::vector<bodyptr> current_body;
-    real *device_phi_out_list; //Our out arrays.
-    vector *device_acc_out_list;
-};
 
 static cudaStream_t localCudaStream;
 
@@ -76,26 +56,12 @@ static real *device_body_cell_mass_list;
 
 static cuda_vector *device_body_cell_pos_list;
 
-// static  cuda_grav_pack_soa cuda_grav_pack_list;
-
 
 static thrust::host_vector<uint32_t> h_interact_vecs;
 
 static thrust::host_vector<uint32_t> h_offset;
 
 static thrust::host_vector<size_t> h_bodies_to_process;
-
-
-// void new_cuda_grav_pack(cuda_grav_pack_soa *self, uint32_t *_body_cell_index_array, uint32_t *_device_body_cell_index_array, size_t _device_body_cell_index_array_size, uint32_t _total_count, bodyptr _current_body)
-// {
-//     self->body_cell_index_array.push_back(_body_cell_index_array);
-//     self->device_body_cell_index_array.push_back(_device_body_cell_index_array);
-//     self->device_body_cell_index_array_size.push_back(_device_body_cell_index_array_size);
-//     self->total_count.push_back(_total_count);
-//     self->current_body.push_back(_current_body);
-// }
-
-
 
 
 
@@ -112,7 +78,7 @@ __global__ void cuda_node_calc_kernel(real eps2, uint32_t* interact_lists, uint3
         start = 0;
     }
     else{
-        start = offset[list_index-1]+1;
+        start = offset[list_index-1];
     }
 
     real dr2, drab, phi_p, mr3i;
@@ -120,9 +86,9 @@ __global__ void cuda_node_calc_kernel(real eps2, uint32_t* interact_lists, uint3
     cuda_vector dr;
     real local_phi0 = 0;
     cuda_vector local_acc0;
-    CLR_CUDA_VECTOR(local_acc0);
     //CLRV(local_acc0);
-
+    CLR_CUDA_VECTOR(local_acc0);
+    
     size_t current_body_index = bodies_to_process[list_index];
 
     for (uint32_t i = start; i < end; i++)
@@ -132,7 +98,7 @@ __global__ void cuda_node_calc_kernel(real eps2, uint32_t* interact_lists, uint3
         dr = pos_list[loop_body_index] - pos_list[current_body_index];
         dr2 = dot(dr, dr);
         dr2 += eps2;
-        drab = rsqrt(dr2);
+        drab = sqrt(dr2);
         phi_p = mass_list[loop_body_index]/drab;
         local_phi0 -= phi_p;
         mr3i = phi_p/dr2;
@@ -144,40 +110,47 @@ __global__ void cuda_node_calc_kernel(real eps2, uint32_t* interact_lists, uint3
     out_acc_list[current_body_index] = local_acc0;
 }
 
+bool first_call = true;
+
 void cuda_gravsum(bodyptr current_body, cell_ll_entry_t *cell_list_tail, cell_ll_entry_t *body_list_tail) {
 
-    uint32_t cell_count = 0;
     cell_ll_entry_t *curr_list_entry = cell_list_tail;
-    while (curr_list_entry->priv != nullptr) {
-        h_interact_vecs.push_back(curr_list_entry->index + nbody);
-        cell_count++;
+    while (curr_list_entry->priv != nullptr) {       
+        h_interact_vecs.push_back(curr_list_entry->index + nbody);;
         curr_list_entry = curr_list_entry->priv;
     }
 
-    uint32_t body_count = 0;
     curr_list_entry = body_list_tail;
-    while (curr_list_entry->priv != nullptr) {
+    while (curr_list_entry->priv != nullptr) {     
         h_interact_vecs.push_back(curr_list_entry->index);
-        body_count++;
         curr_list_entry = curr_list_entry->priv;
-    }
+    } 
 
-    h_offset.push_back(h_interact_vecs.size()-1); // = end
+    h_offset.push_back(h_interact_vecs.size()); // = end
     h_bodies_to_process.push_back((size_t)(current_body-bodytab));
-
 }
 
 //Will send cuda_grav_pack_list to gpu and calculate.
 void cuda_gravsum_dispatch()
 {
+
     size_t nBodiesToProcess = h_bodies_to_process.size();
 
-    thrust::device_vector<uint32_t> d_interact_vecs;
-    thrust::copy(thrust::cuda::par.on(localCudaStream), h_interact_vecs.begin(), h_interact_vecs.end(), d_interact_vecs.begin());
-    thrust::device_vector<uint32_t> d_offset; 
-    thrust::copy(thrust::cuda::par.on(localCudaStream), h_offset.begin(), h_offset.end(), d_offset.begin());
-    thrust::device_vector<size_t> d_bodies_to_process; 
-    thrust::copy(thrust::cuda::par.on(localCudaStream), h_bodies_to_process.begin(), h_bodies_to_process.end(), d_bodies_to_process.begin());
+    thrust::device_vector<uint32_t> d_interact_vecs(h_interact_vecs.size());
+    // printf("h_Size: %lu\n", h_interact_vecs.size());
+    // printf("d_Size: %lu\n", d_interact_vecs.size());
+    // printf("Copying d_interact_vecs..\n");
+    //thrust::copy(thrust::cuda::par.on(localCudaStream), h_interact_vecs.begin(), h_interact_vecs.end(), d_interact_vecs.begin());
+    d_interact_vecs = h_interact_vecs;
+    //printf("Copy success\n");
+    thrust::device_vector<uint32_t> d_offset(h_offset.size()); 
+    //printf("Copying d_offset..\n");
+    //thrust::copy(thrust::cuda::par.on(localCudaStream), h_offset.begin(), h_offset.end(), d_offset.begin());
+    d_offset = h_offset;
+    thrust::device_vector<size_t> d_bodies_to_process(h_bodies_to_process.size()); 
+    //printf("Copying d_body_to_process..\n");
+    //thrust::copy(thrust::cuda::par.on(localCudaStream), h_bodies_to_process.begin(), h_bodies_to_process.end(), d_bodies_to_process.begin());
+    d_bodies_to_process = h_bodies_to_process;
     thrust::device_vector<real> d_out_phi(nBodiesToProcess, 0);
     thrust::device_vector<cuda_vector> d_out_acc(nBodiesToProcess);
 
@@ -193,7 +166,7 @@ void cuda_gravsum_dispatch()
     int nrGrids = (nBodiesToProcess + blocksize - 1)/blocksize;
 
 
-    cuda_node_calc_kernel<<<nrGrids, blocksize, 0, localCudaStream>>>(eps2, 
+    cuda_node_calc_kernel<<<nrGrids, blocksize, 0>>>(eps2, 
         d_interact_vecs_raw, // 1D vector which links all interact lists
         d_offset_raw, // offset
         d_bodies_to_process_raw, 
@@ -203,29 +176,28 @@ void cuda_gravsum_dispatch()
         d_out_acc_raw, // acc
         nBodiesToProcess);
 
-    thrust::host_vector<real> h_out_phi;
-    thrust::copy(thrust::cuda::par.on(localCudaStream), d_out_phi.begin(), d_out_phi.end(), h_out_phi.begin());
-    thrust::host_vector<cuda_vector> h_out_acc;
-    thrust::copy(thrust::cuda::par.on(localCudaStream), d_out_acc.begin(), d_out_acc.end(), h_out_acc.begin());
 
+    thrust::host_vector<real> h_out_phi(d_out_phi.size());
+    //printf("Copying out_phi..\n");
+    //thrust::copy(thrust::cuda::par.on(localCudaStream), d_out_phi.begin(), d_out_phi.end(), h_out_phi.begin());
+    h_out_phi = d_out_phi;
+    thrust::host_vector<cuda_vector> h_out_acc(d_out_acc.size());
+    //("Copying out_acc..\n");
+    //thrust::copy(thrust::cuda::par.on(localCudaStream), d_out_acc.begin(), d_out_acc.end(), h_out_acc.begin());
+    h_out_acc = d_out_acc;
     
 
     //Apply phi0 and acc on bodies
-    for (int i = 0; i < nBodiesToProcess; i++)
+    for (size_t i = 0; i < nBodiesToProcess; i++)
     {
-        bodyptr current_bptr = bodytab+h_bodies_to_process[i];
-        Phi(current_bptr) = h_out_phi[i];
-        SETV(Acc(current_bptr), CUDA_VECTOR_TO_VECTOR(h_out_acc[i]));
+        bodyptr current_bptr = bodytab + h_bodies_to_process[i];
+        size_t current_body_index = h_bodies_to_process[i];
+        Phi(current_bptr) = h_out_phi[current_body_index];
+        SETV(Acc(current_bptr), CUDA_VECTOR_TO_VECTOR(h_out_acc[current_body_index]));
         current_bptr->updated = TRUE;
     }
-    //Free cuda memory
-    // cudaFreeAsync(cuda_grav_pack_list.device_phi_out_list, localCudaStream);
-    // cudaFreeAsync(cuda_grav_pack_list.device_acc_out_list, localCudaStream);
-    // cudaFreeAsync(cuda_grav_pack_list.device_body_cell_index_array_pointer_list, localCudaStream);
-    // cudaFreeAsync(cuda_grav_pack_list.device_total_count, localCudaStream);
 
-    cudaStreamSynchronize(localCudaStream);
-
+    //cudaStreamSynchronize(localCudaStream);
 
 }
 
@@ -234,7 +206,7 @@ void cuda_gravsum_dispatch()
 void cuda_gravsum_init() {
     //TODO: Guard against/allow multiple calls?
     cudaStreamCreate(&localCudaStream);
-    printf("!!!!!!!!!! Only run on singlethread, struct of array is not thread safe\n");
+    // printf("!!!!!!!!!! Only run on singlethread, struct of array is not thread safe\n");
 
 
     cudaMalloc(&device_body_cell_mass_list, nbody * 2 * sizeof(real));
@@ -247,22 +219,27 @@ void cuda_gravsum_init() {
     for (int i = 0; i < nbody; i++) {
         body_mass_list[i] = Mass(&bodytab[i]);
     }
-
+    
     cudaMemcpy(device_body_cell_mass_list, body_mass_list, nbody * sizeof(real), cudaMemcpyHostToDevice);
+
 }
 
 void cuda_update_body_cell_data() {
-    vector body_cell_pos_list[nbody + ncell];
+
+    // vector body_cell_pos_list[nbody + ncell];
+    cuda_vector body_cell_pos_list[nbody + ncell];
 
     for (int i = 0; i < nbody; i++) {
-        SETV(body_cell_pos_list[i], Pos(&bodytab[i]));
+        //SETV(body_cell_pos_list[i], Pos(&bodytab[i]));
+        body_cell_pos_list[i] = VECTOR_TO_CUDA_VECTOR(Pos(&bodytab[i]));
     }
 
     for (int i = 0; i < ncell; i++) {
-         SETV(body_cell_pos_list[i + nbody], Pos(&celltab[i]));
+        //SETV(body_cell_pos_list[i + nbody], Pos(&celltab[i]));
+        body_cell_pos_list[i+nbody] = VECTOR_TO_CUDA_VECTOR(Pos(&celltab[i]));
     }
 
-    cudaMemcpy(device_body_cell_pos_list, body_cell_pos_list, nbody * sizeof(cuda_vector), cudaMemcpyHostToDevice);
+    cudaMemcpy(device_body_cell_pos_list, body_cell_pos_list, (nbody+ncell) * sizeof(cuda_vector), cudaMemcpyHostToDevice);
 
     real cell_mass_list[ncell];
 
@@ -270,6 +247,7 @@ void cuda_update_body_cell_data() {
         cell_mass_list[i] = Mass(&celltab[i]);
     }
     cudaMemcpy(device_body_cell_mass_list + nbody, cell_mass_list, ncell * sizeof(real), cudaMemcpyHostToDevice);
+
 
     h_interact_vecs.clear();
     h_offset.clear();

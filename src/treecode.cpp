@@ -11,7 +11,7 @@
 #include "treecode.h"
 
 #include <assert.h>
-//#include <cuda_runtime_api.h>
+#include <cuda_runtime.h>
 
 #include "treedefs.h"
 #include <stdbool.h>
@@ -105,12 +105,11 @@ int main(int argc, string argv[]) {
     create_mpi_body_update_type(&mpi_body_update_type);
 
     int deviceCount;
-    //cudaGetDeviceCount(&deviceCount);
+    cudaGetDeviceCount(&deviceCount);
     if (deviceCount == 0) {
         fprintf(stderr, "No CUDA devices found\n");
         return 1;
     }
-
 
     double start_time;
     initparam(argv, defv); /* initialize param access  */
@@ -344,6 +343,9 @@ local void dataExchange() {
             local_changes_count++;
         }
     }
+
+    //printf("total updated: %d\n", local_changes_count);
+
     //Allgather receive change counts.
     int32_t receive_count[mpi_numproc];
 
@@ -378,5 +380,11 @@ local void dataExchange() {
         assert(update->index < nbody);
         body->phi = update->phi;
         SETV(body->acc, update->acc);
+
+        // if ((int)(body-bodytab) == 10){
+        //     printf("body[10]->phi = %f\n", body->phi);
+        //     printf("body[10]->mass = %f", Mass(body));
+        // }
+
     }
 }
