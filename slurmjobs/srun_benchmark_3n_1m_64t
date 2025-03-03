@@ -5,10 +5,10 @@
 #SBATCH --output=output_treecode_benchmark%j.txt
 #SBATCH --nodes=3 # Number of nodes
 #SBATCH --ntasks-per-node=1 # MPI tasks (ranks) per node
-#SBATCH --cpus-per-task=16 # OpenMP threads per MPI rank
+#SBATCH --cpus-per-task=64 # OpenMP threads per MPI rank
 #SBATCH -C ZEN4
 
-export OMP_NUM_THREADS=16 # Set number of OpenMP threads per MPI rank
+export OMP_NUM_THREADS=64 # Set number of OpenMP threads per MPI rank
 
 module load OpenMPI/5.0.3-GCC-13.3.0-aocc
 
