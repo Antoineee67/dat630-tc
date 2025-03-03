@@ -10,4 +10,6 @@ void cuda_gravsum_init();
 void cuda_gravsum_dispatch();
 
 void cuda_update_body_cell_data();
+
+void cuda_free_all();
 #endif //CUDAGRAVSUM_H

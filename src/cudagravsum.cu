@@ -49,8 +49,9 @@ typedef struct {
 #error "NDIM must be 2, 3, or 4"
 #endif
 
+#define N_CUDA_STREAMS 4
 
-static cudaStream_t localCudaStream;
+static cudaStream_t localCudaStreams[N_CUDA_STREAMS];
 
 static real *device_body_cell_mass_list;
 
@@ -66,20 +67,43 @@ static thrust::host_vector<size_t> h_bodies_to_process;
 
 
 __global__ void cuda_node_calc_kernel(real eps2, uint32_t* interact_lists, uint32_t* offset, size_t* bodies_to_process,
-    cuda_vector* pos_list, real* mass_list, real *out_phi_list, cuda_vector* out_acc_list, size_t n_bodies){
+    cuda_vector* pos_list, real* mass_list, real *out_phi_list, cuda_vector* out_acc_list, size_t width, uint32_t interact_start){
 
     uint32_t list_index = blockIdx.x*blockDim.x + threadIdx.x; //What body the gpu should work on corresponds to one element in the struct of arrays.
 
-    if (list_index >= n_bodies)
+
+    size_t current_body_index = bodies_to_process[list_index];
+
+    // if (current_body_index == 0){
+    //     printf("list_index = %d\n", list_index);
+    //     printf("width = %d\n", width);
+    //     for (int i = 0; i< width;i++){
+    //         printf("hello from %d\n", current_body_index);
+    //         printf("i = %d\n", i);
+    //         printf("bi = %d\n", bodies_to_process[i]);
+    //     }
+        
+    // }
+
+    if (list_index >= width)
         return;
-    uint32_t end = offset[list_index];
+    uint32_t end = offset[list_index] - interact_start;
+
+    // if (current_body_index == 0){
+    //     printf("hello2\n");
+    // }
+
     uint32_t start;
     if (list_index == 0){
         start = 0;
     }
     else{
-        start = offset[list_index-1];
+        start = offset[list_index-1] - interact_start;
     }
+
+    // if (current_body_index == 0){
+    //     printf("hello3\n");
+    // }
 
     real dr2, drab, phi_p, mr3i;
     //vector dr;
@@ -88,8 +112,6 @@ __global__ void cuda_node_calc_kernel(real eps2, uint32_t* interact_lists, uint3
     cuda_vector local_acc0;
     //CLRV(local_acc0);
     CLR_CUDA_VECTOR(local_acc0);
-    
-    size_t current_body_index = bodies_to_process[list_index];
 
     for (uint32_t i = start; i < end; i++)
     {   
@@ -106,8 +128,16 @@ __global__ void cuda_node_calc_kernel(real eps2, uint32_t* interact_lists, uint3
         local_acc0 += dr * mr3i;
     }
 
-    out_phi_list[current_body_index] = local_phi0;
-    out_acc_list[current_body_index] = local_acc0;
+    // if (current_body_index == 0){
+    //     printf("hello4\n");
+    // }
+
+    out_phi_list[list_index] = local_phi0;
+    out_acc_list[list_index] = local_acc0;
+
+    // if (current_body_index == 0){
+    //     printf("hello5\n");
+    // }
 }
 
 bool first_call = true;
@@ -136,68 +166,87 @@ void cuda_gravsum_dispatch()
 
     size_t nBodiesToProcess = h_bodies_to_process.size();
 
+    thrust::host_vector<real> h_out_phi(nBodiesToProcess);
+    thrust::host_vector<cuda_vector> h_out_acc(nBodiesToProcess);
     thrust::device_vector<uint32_t> d_interact_vecs(h_interact_vecs.size());
-    // printf("h_Size: %lu\n", h_interact_vecs.size());
-    // printf("d_Size: %lu\n", d_interact_vecs.size());
-    // printf("Copying d_interact_vecs..\n");
-    //thrust::copy(thrust::cuda::par.on(localCudaStream), h_interact_vecs.begin(), h_interact_vecs.end(), d_interact_vecs.begin());
-    d_interact_vecs = h_interact_vecs;
-    //printf("Copy success\n");
-    thrust::device_vector<uint32_t> d_offset(h_offset.size()); 
-    //printf("Copying d_offset..\n");
-    //thrust::copy(thrust::cuda::par.on(localCudaStream), h_offset.begin(), h_offset.end(), d_offset.begin());
-    d_offset = h_offset;
-    thrust::device_vector<size_t> d_bodies_to_process(h_bodies_to_process.size()); 
-    //printf("Copying d_body_to_process..\n");
-    //thrust::copy(thrust::cuda::par.on(localCudaStream), h_bodies_to_process.begin(), h_bodies_to_process.end(), d_bodies_to_process.begin());
-    d_bodies_to_process = h_bodies_to_process;
+    thrust::device_vector<uint32_t> d_offset(nBodiesToProcess); 
+    thrust::device_vector<size_t> d_bodies_to_process(nBodiesToProcess); 
     thrust::device_vector<real> d_out_phi(nBodiesToProcess, 0);
     thrust::device_vector<cuda_vector> d_out_acc(nBodiesToProcess);
+
+    uint32_t* h_interact_vecs_raw = thrust::raw_pointer_cast(h_interact_vecs.data());
+    uint32_t* h_offset_raw = thrust::raw_pointer_cast(h_offset.data());
+    size_t* h_bodies_to_process_raw = thrust::raw_pointer_cast(h_bodies_to_process.data());
+    real* h_out_phi_raw = thrust::raw_pointer_cast(h_out_phi.data());
+    cuda_vector* h_out_acc_raw = thrust::raw_pointer_cast(h_out_acc.data()); 
 
     uint32_t* d_interact_vecs_raw = thrust::raw_pointer_cast(d_interact_vecs.data());
     uint32_t* d_offset_raw = thrust::raw_pointer_cast(d_offset.data());
     size_t* d_bodies_to_process_raw = thrust::raw_pointer_cast(d_bodies_to_process.data());
     real* d_out_phi_raw = thrust::raw_pointer_cast(d_out_phi.data());
-    cuda_vector* d_out_acc_raw = thrust::raw_pointer_cast(d_out_acc.data());
+    cuda_vector* d_out_acc_raw = thrust::raw_pointer_cast(d_out_acc.data()); 
 
 
-    //Start kernel
-    int blocksize = 256;
-    int nrGrids = (nBodiesToProcess + blocksize - 1)/blocksize;
+    size_t chunk_size = nBodiesToProcess / N_CUDA_STREAMS;
 
+    for (int i = 0; i < N_CUDA_STREAMS; i++){
 
-    cuda_node_calc_kernel<<<nrGrids, blocksize, 0>>>(eps2, 
-        d_interact_vecs_raw, // 1D vector which links all interact lists
-        d_offset_raw, // offset
-        d_bodies_to_process_raw, 
-        device_body_cell_pos_list, // pos
-        device_body_cell_mass_list, // mass
-        d_out_phi_raw, // phi
-        d_out_acc_raw, // acc
-        nBodiesToProcess);
+        size_t lower = chunk_size * i;
+        size_t upper = min(lower+chunk_size, nBodiesToProcess);
+        size_t width = upper - lower;
 
+        cudaMemcpyAsync(d_offset_raw+lower, h_offset_raw+lower, sizeof(uint32_t)*width, 
+                        cudaMemcpyHostToDevice, localCudaStreams[i]);
+        cudaMemcpyAsync(d_bodies_to_process_raw+lower, h_bodies_to_process_raw+lower, sizeof(size_t)*width, 
+                        cudaMemcpyHostToDevice, localCudaStreams[i]);
 
-    thrust::host_vector<real> h_out_phi(d_out_phi.size());
-    //printf("Copying out_phi..\n");
-    //thrust::copy(thrust::cuda::par.on(localCudaStream), d_out_phi.begin(), d_out_phi.end(), h_out_phi.begin());
-    h_out_phi = d_out_phi;
-    thrust::host_vector<cuda_vector> h_out_acc(d_out_acc.size());
-    //("Copying out_acc..\n");
-    //thrust::copy(thrust::cuda::par.on(localCudaStream), d_out_acc.begin(), d_out_acc.end(), h_out_acc.begin());
-    h_out_acc = d_out_acc;
+        uint32_t interact_lower = (lower>0)? h_offset[lower-1] : 0;
+        uint32_t interact_width = h_offset[upper-1] - interact_lower;
+
+        cudaMemcpyAsync(d_interact_vecs_raw+interact_lower, h_interact_vecs_raw+interact_lower, sizeof(uint32_t)*interact_width, 
+                        cudaMemcpyHostToDevice, localCudaStreams[i]);
+        
+        int blocksize = 256;
+        int nrGrids = (width + blocksize - 1)/blocksize;
+        
+        // printf("copy success for stream %d\n", i);
+
+        cuda_node_calc_kernel<<<nrGrids, blocksize, 0, localCudaStreams[i]>>>(eps2, 
+            d_interact_vecs_raw+interact_lower, // 1D vector which links all interact lists
+            d_offset_raw+lower, // offset
+            d_bodies_to_process_raw+lower, 
+            device_body_cell_pos_list, // pos
+            device_body_cell_mass_list, // mass
+            d_out_phi_raw+lower, // phi
+            d_out_acc_raw+lower, // acc
+            width,
+            interact_lower); 
+        
+        // printf("kernel success for stream %d\n", i);
+
+        cudaMemcpyAsync(h_out_phi_raw+lower, d_out_phi_raw+lower, sizeof(real)*width, 
+                        cudaMemcpyDeviceToHost, localCudaStreams[i]);
+        cudaMemcpyAsync(h_out_acc_raw+lower, d_out_acc_raw+lower, sizeof(cuda_vector)*width, 
+                        cudaMemcpyDeviceToHost, localCudaStreams[i]);
+        // printf("copy back success for stream %d\n", i);
+    }
+
+    for (int i = 0; i < N_CUDA_STREAMS; i++){
+        cudaStreamSynchronize(localCudaStreams[i]);
+    }
     
 
-    //Apply phi0 and acc on bodies
+    // Apply phi0 and acc on bodies
     for (size_t i = 0; i < nBodiesToProcess; i++)
     {
         bodyptr current_bptr = bodytab + h_bodies_to_process[i];
         size_t current_body_index = h_bodies_to_process[i];
-        Phi(current_bptr) = h_out_phi[current_body_index];
-        SETV(Acc(current_bptr), CUDA_VECTOR_TO_VECTOR(h_out_acc[current_body_index]));
+        Phi(current_bptr) = h_out_phi[i];
+        SETV(Acc(current_bptr), CUDA_VECTOR_TO_VECTOR(h_out_acc[i]));
         current_bptr->updated = TRUE;
     }
 
-    //cudaStreamSynchronize(localCudaStream);
+    //printf("load success for stream\n");
 
 }
 
@@ -205,7 +254,10 @@ void cuda_gravsum_dispatch()
 
 void cuda_gravsum_init() {
     //TODO: Guard against/allow multiple calls?
-    cudaStreamCreate(&localCudaStream);
+    //cudaStreamCreate(&localCudaStream);
+    for (int i = 0; i < N_CUDA_STREAMS; i++){
+        cudaStreamCreate(&localCudaStreams[i]);
+    }
     // printf("!!!!!!!!!! Only run on singlethread, struct of array is not thread safe\n");
 
 
@@ -252,4 +304,13 @@ void cuda_update_body_cell_data() {
     h_interact_vecs.clear();
     h_offset.clear();
     h_bodies_to_process.clear();
+}
+
+
+void cuda_free_all(){
+    cudaFree(device_body_cell_mass_list);
+    cudaFree(device_body_cell_pos_list);
+    for (int i = 0; i < N_CUDA_STREAMS; i++){
+        cudaStreamDestroy(localCudaStreams[i]);
+    }
 }

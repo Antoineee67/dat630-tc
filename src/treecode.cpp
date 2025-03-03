@@ -155,6 +155,7 @@ int main(int argc, string argv[]) {
         double stop_time = omp_get_wtime();
         printf("Time elapsed: %g sec\n", stop_time - start_time);
     }
+    cuda_free_all();
     MPI_Finalize();
     return (0); /* end with proper status   */
 }
