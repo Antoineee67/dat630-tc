@@ -10,9 +10,6 @@
 #undef Update
 #undef global
 
-#include <thrust/device_vector.h>
-#include <thrust/host_vector.h>
-#include <thrust/copy.h>
 #include "helper_math.h"
 
 typedef struct {
@@ -49,7 +46,7 @@ typedef struct {
 #error "NDIM must be 2, 3, or 4"
 #endif
 
-#define N_CUDA_STREAMS 4
+#define N_CUDA_STREAMS 1
 
 static cudaStream_t localCudaStreams[N_CUDA_STREAMS];
 
@@ -58,11 +55,11 @@ static real *device_body_cell_mass_list;
 static cuda_vector *device_body_cell_pos_list;
 
 
-static thrust::host_vector<uint32_t> h_interact_vecs;
+static std::vector<uint32_t> h_interact_vecs;
 
-static thrust::host_vector<uint32_t> h_offset;
+static std::vector<uint32_t> h_offset;
 
-static thrust::host_vector<size_t> h_bodies_to_process;
+static std::vector<size_t> h_bodies_to_process;
 
 
 
@@ -139,25 +136,23 @@ void cuda_gravsum_dispatch()
 
     size_t nBodiesToProcess = h_bodies_to_process.size();
 
-    thrust::host_vector<real> h_out_phi(nBodiesToProcess);
-    thrust::host_vector<cuda_vector> h_out_acc(nBodiesToProcess);
-    thrust::device_vector<uint32_t> d_interact_vecs(h_interact_vecs.size());
-    thrust::device_vector<uint32_t> d_offset(nBodiesToProcess); 
-    thrust::device_vector<size_t> d_bodies_to_process(nBodiesToProcess); 
-    thrust::device_vector<real> d_out_phi(nBodiesToProcess, 0);
-    thrust::device_vector<cuda_vector> d_out_acc(nBodiesToProcess);
+    uint32_t* h_interact_vecs_raw = h_interact_vecs.data();
+    uint32_t* h_offset_raw = h_offset.data();
+    size_t* h_bodies_to_process_raw = h_bodies_to_process.data();
+    real h_out_phi_raw[nBodiesToProcess];
+    cuda_vector h_out_acc_raw[nBodiesToProcess]; 
 
-    uint32_t* h_interact_vecs_raw = thrust::raw_pointer_cast(h_interact_vecs.data());
-    uint32_t* h_offset_raw = thrust::raw_pointer_cast(h_offset.data());
-    size_t* h_bodies_to_process_raw = thrust::raw_pointer_cast(h_bodies_to_process.data());
-    real* h_out_phi_raw = thrust::raw_pointer_cast(h_out_phi.data());
-    cuda_vector* h_out_acc_raw = thrust::raw_pointer_cast(h_out_acc.data()); 
 
-    uint32_t* d_interact_vecs_raw = thrust::raw_pointer_cast(d_interact_vecs.data());
-    uint32_t* d_offset_raw = thrust::raw_pointer_cast(d_offset.data());
-    size_t* d_bodies_to_process_raw = thrust::raw_pointer_cast(d_bodies_to_process.data());
-    real* d_out_phi_raw = thrust::raw_pointer_cast(d_out_phi.data());
-    cuda_vector* d_out_acc_raw = thrust::raw_pointer_cast(d_out_acc.data()); 
+    uint32_t* d_interact_vecs_raw;
+    cudaMalloc(&d_interact_vecs_raw, sizeof(uint32_t)*h_interact_vecs.size());
+    uint32_t* d_offset_raw;
+    cudaMalloc(&d_offset_raw, sizeof(uint32_t)*nBodiesToProcess);
+    size_t* d_bodies_to_process_raw;
+    cudaMalloc(&d_bodies_to_process_raw, sizeof(size_t)*nBodiesToProcess);
+    real* d_out_phi_raw;
+    cudaMalloc(&d_out_phi_raw, sizeof(real)*nBodiesToProcess);
+    cuda_vector* d_out_acc_raw;
+    cudaMalloc(&d_out_acc_raw, sizeof(cuda_vector)*nBodiesToProcess);
 
 
     size_t chunk_size = nBodiesToProcess / N_CUDA_STREAMS;
@@ -210,10 +205,17 @@ void cuda_gravsum_dispatch()
     {
         bodyptr current_bptr = bodytab + h_bodies_to_process[i];
         size_t current_body_index = h_bodies_to_process[i];
-        Phi(current_bptr) = h_out_phi[i];
-        SETV(Acc(current_bptr), CUDA_VECTOR_TO_VECTOR(h_out_acc[i]));
+        Phi(current_bptr) = h_out_phi_raw[i];
+        SETV(Acc(current_bptr), CUDA_VECTOR_TO_VECTOR(h_out_acc_raw[i]));
         current_bptr->updated = TRUE;
     }
+
+    
+    cudaFree(d_interact_vecs_raw);
+    cudaFree(d_offset_raw);
+    cudaFree(d_bodies_to_process_raw);
+    cudaFree(d_out_acc_raw);
+    cudaFree(d_out_phi_raw);
 
 }
 
