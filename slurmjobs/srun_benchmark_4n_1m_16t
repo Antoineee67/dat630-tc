@@ -3,7 +3,7 @@
 #SBATCH -A C3SE2024-2-18 -p vera #Check if correct project
 #SBATCH -t 0-00:03:00 #Max runtime of 20 min
 #SBATCH --output=output_treecode_benchmark%j.txt
-#SBATCH --nodes=3 # Number of nodes
+#SBATCH --nodes=4 # Number of nodes
 #SBATCH --ntasks-per-node=1 # MPI tasks (ranks) per node
 #SBATCH --cpus-per-task=16 # OpenMP threads per MPI rank
 #SBATCH -C ZEN4
