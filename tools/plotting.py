@@ -41,7 +41,7 @@ def mpi_depth_optimum_depth(df: pandas.DataFrame, averageSize):
     ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
     loc = plticker.MultipleLocator(base=100000) # this locator puts ticks at regular intervals
     ax.xaxis.set_major_locator(loc)
-    fig.savefig(f"./plots/mpi-optimal_depth", dpi=300)
+    fig.savefig(f"./plots/mpi-optimal_depth.png", dpi=300)
 
 def openmp_threashold(df: pandas.DataFrame):
     nbody_sizes = df["nbody"].unique()
@@ -61,19 +61,39 @@ def openmp_threashold(df: pandas.DataFrame):
     labels[-1] = '$10.0\\times 10^5~~$  ' #Ugly fix.
     print(labels)
     ax.legend(handles[::-1], labels[::-1], loc="center right", bbox_to_anchor=(1.4, 0.5), frameon=False, title="$N$")
-    fig.savefig(f"./plots/omp-threashold", dpi=300)
+    fig.savefig(f"./plots/omp-threashold.png", dpi=300)
 
+
+def runtime_benchmark_plots(df: pandas.DataFrame):
+    nr_nodes = df["mpi_nodes"].unique()
+    fig, ax = plt.subplots()
+    for node in nr_nodes:
+        sub_df = df.query("mpi_nodes == @node")
+
+        ordering = sub_df["omp_threads"].sort_values().index
+        ax.plot(sub_df["omp_threads"][ordering], sub_df["runtime"][ordering], label=f"Zen4 nodes: {node}")
+    
+    ax.set_ylabel("Runtime [s]")
+    ax.set_xlabel("OMP threads")
+    fig.legend()
+    fig.savefig(f"./plots/runtime_benchmark.png")
 
 
 if not os.path.exists("./plots"):
     os.makedirs("./plots")
 
 
-df_mpi_depth = pandas.read_csv(r"../localjobs/mpi_depth_data.txt",header=0, decimal=".", delimiter="\t")
-openMP_depth = pandas.read_csv(r"../localjobs/openMP_threshold_data.txt",header=0, decimal=".", delimiter="\t")
+#df_mpi_depth = pandas.read_csv(r"../localjobs/mpi_depth_data.txt",header=0, decimal=".", delimiter="\t")
+#openMP_depth = pandas.read_csv(r"../localjobs/openMP_threshold_data.txt",header=0, decimal=".", delimiter="\t")
 
 
-mpi_depth_optimum_depth(df_mpi_depth, 2)
+#mpi_depth_optimum_depth(df_mpi_depth, 2)
 
-openmp_threashold(openMP_depth)
+#openmp_threashold(openMP_depth)
+
+
+runtime_bench = pandas.read_csv(r"../benchmarks/vera-1-mpi-runtime",header=0, decimal=".", delimiter="\t")
+
+runtime_benchmark_plots(runtime_bench)
+
 
