@@ -67,6 +67,7 @@ def openmp_threashold(df: pandas.DataFrame):
 def speedup_benchmark_plots(df: pandas.DataFrame):
     nr_nodes = df["mpi_nodes"].unique()
     fig, ax = plt.subplots()
+    global baseline
     baseline = df.query("mpi_nodes == 1 and omp_threads == 1")["runtime"].max()
     for node in nr_nodes:
         sub_df = df.query("mpi_nodes == @node")
@@ -100,6 +101,19 @@ def speedup_benchmark_plots(df: pandas.DataFrame):
     
 
 
+def speedup_omp_levels(df: pandas.DataFrame):
+    fig, ax = plt.subplots()
+    global baseline
+    print(baseline)
+    ordering = df["runtime"].sort_values().index
+    ax.plot(df["omp_max_active_levels"][ordering], baseline/df["runtime"][ordering])
+    ax.set_ylabel("Speedup", fontsize=16)
+    ax.set_xlabel("OpenMP nested levels", fontsize=16)
+    ax.set_title("$N=10^6$", fontsize=16)
+    ax.xaxis.set_major_locator(plticker.IndexLocator(1,0))
+    ax.tick_params(axis='both', which='major', labelsize=14)
+    ax.tick_params(axis='both', which='minor', labelsize=8)
+    fig.savefig("./plots/omp_levels_benchmark.png", dpi=300)
 
 
 
@@ -121,5 +135,9 @@ mpi_depth_optimum_depth_and_exchanged_bodies(df_mpi_depth, 2)
 runtime_bench = pandas.read_csv(r"../benchmarks/vera-1-mpi-runtime-no-ompnest",header=0, decimal=".", delimiter="\t")
 
 speedup_benchmark_plots(runtime_bench)
+
+levels_bench = pandas.read_csv(r"../levelsTest/treecodeBenchmark.txt",header=0, decimal=".", delimiter="\t")
+
+speedup_omp_levels(levels_bench)
 
 
