@@ -16,7 +16,7 @@ def meanCal(arr, length):
     return sum/length
 
 
-def mpi_depth_optimum_depth(df: pandas.DataFrame, averageSize):
+def mpi_depth_optimum_depth_and_exchanged_bodies(df: pandas.DataFrame, averageSize):
     #averageSize is how many samples should be averaged to get the mpi_depth when sorted by runtime. 
     #Should probably be equal to how many samples you have for each initial condition.
     
@@ -64,36 +64,62 @@ def openmp_threashold(df: pandas.DataFrame):
     fig.savefig(f"./plots/omp-threashold.png", dpi=300)
 
 
-def runtime_benchmark_plots(df: pandas.DataFrame):
+def speedup_benchmark_plots(df: pandas.DataFrame):
     nr_nodes = df["mpi_nodes"].unique()
     fig, ax = plt.subplots()
+    baseline = df.query("mpi_nodes == 1 and omp_threads == 1")["runtime"].max()
     for node in nr_nodes:
         sub_df = df.query("mpi_nodes == @node")
 
         ordering = sub_df["omp_threads"].sort_values().index
-        ax.plot(sub_df["omp_threads"][ordering], sub_df["runtime"][ordering], label=f"Zen4 nodes: {node}")
+        ax.plot(sub_df["omp_threads"][ordering], baseline/sub_df["runtime"][ordering], label=f"Zen4 nodes: {node}")
     
-    ax.set_ylabel("Runtime [s]")
-    ax.set_xlabel("OMP threads")
-    fig.legend()
-    fig.savefig(f"./plots/runtime_benchmark.png")
+    ax.set_ylabel("Speedup", fontsize=16)
+    ax.set_xlabel("OpenMP threads", fontsize=16)
+    ax.set_xscale("log", base=2)
+    ax.set_title("$N=10^6$", fontsize=16)
+    ax.tick_params(axis='both', which='major', labelsize=14)
+    ax.tick_params(axis='both', which='minor', labelsize=8)
+    ax.xaxis.set_major_formatter(plticker.LogFormatter(base=2))
+    ax.legend()
+    #fig.legend(loc=7, bbox_to_anchor=(1,0.3))
+    fig.savefig(f"./plots/multinode_speedup_benchmark.png", dpi=300)
+
+    sub_df = df.query("mpi_nodes == 1")
+    fig, ax = plt.subplots()
+    ordering = sub_df["omp_threads"].sort_values().index
+    ax.plot(sub_df["omp_threads"][ordering], baseline/sub_df["runtime"][ordering], label=f"Zen4 nodes: {node}")
+    ax.set_ylabel("Speedup", fontsize=16)
+    ax.set_xlabel("OpenMP threads", fontsize=16)
+    ax.set_xscale("log", base=2)
+    ax.set_title("$N=10^6$", fontsize=16)
+    ax.tick_params(axis='both', which='major', labelsize=14)
+    ax.tick_params(axis='both', which='minor', labelsize=8)
+    ax.xaxis.set_major_formatter(plticker.LogFormatter(base=2))
+    fig.savefig("./plots/single_node_speedup_benchmark.png", dpi=300)
+    
+
+
+
+
+
 
 
 if not os.path.exists("./plots"):
     os.makedirs("./plots")
 
 
-#df_mpi_depth = pandas.read_csv(r"../localjobs/mpi_depth_data.txt",header=0, decimal=".", delimiter="\t")
+df_mpi_depth = pandas.read_csv(r"../localjobs/mpi_depth_data.txt",header=0, decimal=".", delimiter="\t")
 #openMP_depth = pandas.read_csv(r"../localjobs/openMP_threshold_data.txt",header=0, decimal=".", delimiter="\t")
 
 
-#mpi_depth_optimum_depth(df_mpi_depth, 2)
+mpi_depth_optimum_depth_and_exchanged_bodies(df_mpi_depth, 2)
 
 #openmp_threashold(openMP_depth)
 
 
-runtime_bench = pandas.read_csv(r"../benchmarks/vera-1-mpi-runtime",header=0, decimal=".", delimiter="\t")
+runtime_bench = pandas.read_csv(r"../benchmarks/vera-1-mpi-runtime-no-ompnest",header=0, decimal=".", delimiter="\t")
 
-runtime_benchmark_plots(runtime_bench)
+speedup_benchmark_plots(runtime_bench)
 
 
