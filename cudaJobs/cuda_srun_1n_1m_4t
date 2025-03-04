@@ -6,7 +6,6 @@
 #SBATCH --nodes=1 # Number of nodes
 #SBATCH --ntasks-per-node=1 # MPI tasks (ranks) per node
 #SBATCH --cpus-per-task=4 # OpenMP threads per MPI rank
-#SBATCH -C ZEN4
 #SBATCH --gpus-per-node=A40:1
 
 export OMP_NUM_THREADS=4 # Set number of OpenMP threads per MPI rank
