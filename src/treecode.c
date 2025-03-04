@@ -62,6 +62,8 @@ string defv[] = {
     "omp_threshold=6",
     ";OMP threshold to which tree depth to parallelize. Below this depth new threads are not created",
     "random_seed=false",
+    "omp_max_levels=0",
+    ";OMP maximum nested parallel regions"
     ";Set if seed should be randomly generated.",
     NULL,
 };
@@ -79,6 +81,8 @@ local int seed;
 local int max_bodies_exchanged = 0 ;
 
 local int least_bodies_exchanged = 2147483647;
+
+local int omp_max_levels = 0;
 
 local char* local_mpi_size;
 
@@ -116,6 +120,8 @@ int main(int argc, string argv[]) {
     local_mpi_size = getenv("OMPI_COMM_WORLD_LOCAL_SIZE");
 
 
+
+
     create_mpi_body_update_type(&mpi_body_update_type);
 
 
@@ -123,6 +129,9 @@ int main(int argc, string argv[]) {
     initparam(argv, defv); /* initialize param access  */
     headline = defv[0] + 1; /* skip ";" in headline     */
     startrun(); /* get params & input data  */
+
+
+    omp_set_max_active_levels(omp_max_levels);
 
     if (mpi_depth < 2 && mpi_numproc > 1) {
         error("mpi_depth must be greater than 1 when using more than 1 MPI process\n");
@@ -143,6 +152,9 @@ int main(int argc, string argv[]) {
         if (mpi_rank == 0)
             output(); /* and report diagnostics   */
     }
+
+
+
 #if defined(USEFREQ)
     if (freq != 0.0)                            /* if time steps requested  */
         while (tstop - tnow > 0.01/freq) {      /* while not past tstop     */
@@ -167,10 +179,10 @@ int main(int argc, string argv[]) {
             FILE* benchmarkResult = fopen(benchmarkFile, "a");
             //Write header if new file
             if (ftell(benchmarkResult) == 0)
-                fprintf(benchmarkResult, "runtime\tnbody\ttstop\tnstep\ttnow\tmpi_nodes\tmpi_depth\tomp_threashold\tmax_exchanged_bodies\tleast_exchanged_bodies\tseed\tomp_threads\tmpi_num_node_local_proc\n");
+                fprintf(benchmarkResult, "runtime\tnbody\ttstop\tnstep\ttnow\tmpi_nodes\tmpi_depth\tomp_threashold\tmax_exchanged_bodies\tleast_exchanged_bodies\tseed\tomp_threads\tmpi_num_node_local_proc\tomp_max_active_levels\n");
 
-            fprintf(benchmarkResult, "%f\t%i\t%f\t%i\t%f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%s\n",stop_time-start_time, nbody,
-                tstop, nstep, tnow, mpi_numproc, mpi_depth, omp_threshold, max_bodies_exchanged, least_bodies_exchanged, seed, omp_get_max_threads(), local_mpi_size);
+            fprintf(benchmarkResult, "%f\t%i\t%f\t%i\t%f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%s\t%i\n",stop_time-start_time, nbody,
+                tstop, nstep, tnow, mpi_numproc, mpi_depth, omp_threshold, max_bodies_exchanged, least_bodies_exchanged, seed, omp_get_max_threads(), local_mpi_size, omp_get_max_active_levels());
         }
 
 
@@ -240,6 +252,8 @@ local void startrun(void) {
     outfile = getparam("out");
     savefile = getparam("save");
     benchmarkFile = getparam("benchmark");
+
+    omp_max_levels = getiparam("omp_max_levels");
 
     if (strnull(getparam("restore"))) {
         /* if starting a new run    */
