@@ -60,7 +60,18 @@ void gravcalc(void) {
     longest_sumnode = 0;
     sumnode_calls = 0;
     memset(depths, 0, sizeof(depths));
-    walktree((nodeptr *) &root, 1, (nodeptr) root, rsize, rmid, NULL, NULL, 0); /* scan tree, update forces */
+
+    #pragma omp parallel
+    {
+        #pragma omp single
+        {
+            walktree((nodeptr *) &root, 1, (nodeptr) root, rsize, rmid, NULL, NULL, 0); /* scan tree, update forces */
+        }
+    }
+
+
+
+
     cpuforce = cputime() - cpustart; /* store CPU time w/o alloc */
 }
 
@@ -98,12 +109,14 @@ local void walksub(nodeptr *active_list, uint32_t active_list_len,
 
 
         if (depth < omp_threshold) {
-#pragma omp parallel for
             for (int i = 0; i < size; i++) {
-                walksubtree(points[i], active_list, active_list_len, current_node_size, current_node_midpoint,
+                nodeptr point = points[i];
+#pragma omp task default(none) firstprivate(point, active_list, active_list_len, current_node_size, current_node_midpoint, cell_list_tail, body_list_tail, depth, poff)
+                walksubtree(point, active_list, active_list_len, current_node_size, current_node_midpoint,
                             cell_list_tail, body_list_tail,
                             depth, poff);
             }
+            #pragma omp taskwait
         } else {
             for (int i = 0; i < size; i++) {
                 walksubtree(points[i], active_list, active_list_len, current_node_size, current_node_midpoint,
