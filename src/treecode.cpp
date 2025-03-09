@@ -132,7 +132,9 @@ int main(int argc, string argv[]) {
     if (nstep == 0) {
         /* if data just initialized */
         treeforce(); /* do complete calculation  */
-        dataExchange();
+        if (mpi_numproc > 1){
+            dataExchange();
+        }
         if (mpi_rank == 0)
             output(); /* and report diagnostics   */
     }
@@ -172,7 +174,8 @@ local void treeforce(void) {
     maketree(bodytab, nbody); /* construct tree structure */
     cuda_update_body_cell_data();
     gravcalc(); /* compute initial forces   */
-    cuda_gravsum_dispatch();
+    cuda_dispatch_last_batch();
+    cuda_collect_result();
     if (mpi_rank == 0)
         forcereport(); /* print force statistics   */
 }
@@ -194,7 +197,9 @@ local void stepsystem(void) {
         ADDMULVS(Pos(p), Vel(p), dtime); /* advance r by 1 step      */
     }
     treeforce(); /* perform force calc.      */
-    dataExchange();
+    if (mpi_numproc > 1){
+        dataExchange();
+    }
     for (p = bodytab; p < bodytab + nbody; p++) {
         /* loop over all bodies     */
         ADDMULVS(Vel(p), Acc(p), 0.5 * dtime); /* advance v by 1/2 step    */

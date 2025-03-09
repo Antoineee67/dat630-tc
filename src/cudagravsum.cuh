@@ -11,5 +11,9 @@ void cuda_gravsum_dispatch();
 
 void cuda_update_body_cell_data();
 
+void cuda_dispatch_last_batch();
+
+void cuda_collect_result();
+
 void cuda_free_all();
 #endif //CUDAGRAVSUM_H
