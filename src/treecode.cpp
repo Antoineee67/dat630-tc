@@ -417,7 +417,7 @@ local void dataExchange() {
     //It seems like we get stack overflow? when allocating to large of an array on the stack. For some cases total_changes can be ~500 000
 
     //Malloc solves this but could be slower?
-    body_update_t *all_body_updates_buffer_local = malloc(total_changes*sizeof(body_update_t));
+    body_update_t *all_body_updates_buffer_local = (body_update_t *)malloc(total_changes*sizeof(body_update_t));
 
 
     // Compute displacements
