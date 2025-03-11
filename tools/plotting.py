@@ -141,7 +141,7 @@ def cuda_benchmark(df: pandas.DataFrame, special_baseline):
     for stream in nr_streams:
         sub_df = df.query("cuda_streams==@stream")
         ordering = sub_df["cuda_size"].sort_values().index
-        ax.scatter(sub_df["cuda_size"][ordering], special_baseline/sub_df["runtime"][ordering], label=f"Nr CUDA streams: {stream}")
+        ax.plot(sub_df["cuda_size"][ordering], special_baseline/sub_df["runtime"][ordering], label=f"Nr CUDA streams: {stream}")
     
 
     ax.set_ylabel("Speedup", fontsize=16)
@@ -150,7 +150,6 @@ def cuda_benchmark(df: pandas.DataFrame, special_baseline):
     ax.set_xscale("log", base=2)
     ax.tick_params(axis='both', which='major', labelsize=14)
     ax.tick_params(axis='both', which='minor', labelsize=8)
-    ax.xaxis.set_major_formatter(plticker.ScalarFormatter())
     ax.legend()
     
     fig.savefig(f"./plots/cuda_bench.png", dpi=300)
@@ -183,4 +182,4 @@ if not os.path.exists("./plots"):
 cuda_bench = pandas.read_csv(r"../benchmarks/CudaBenchmark.txt",header=0, decimal=".", delimiter="\t")
 
 
-cuda_benchmark(cuda_bench, 250/3)
+cuda_benchmark(cuda_bench, 96)
