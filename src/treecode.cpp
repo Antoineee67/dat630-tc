@@ -67,6 +67,8 @@ string defv[] = {
     ";Set if seed should be randomly generated.",
     "CUDA_SIZE=65535",
     ";CUDA dispatch size",
+    "CUDA_STREAMS=4",
+    ";Nr of CUDA streams",
     NULL,
 };
 
@@ -86,7 +88,6 @@ local int least_bodies_exchanged = 2147483647;
 
 local char* local_mpi_size;
 
-int cuda_size;
 
 void create_mpi_body_update_type(MPI_Datatype *mpi_body_update_type) {
     // Define the lengths of each block
@@ -182,10 +183,10 @@ int main(int argc, string argv[]) {
             FILE* benchmarkResult = fopen(benchmarkFile, "a");
             //Write header if new file
             if (ftell(benchmarkResult) == 0)
-                fprintf(benchmarkResult, "runtime\tnbody\ttstop\tnstep\ttnow\tmpi_nodes\tmpi_depth\tomp_threashold\tmax_exchanged_bodies\tleast_exchanged_bodies\tseed\tomp_threads\tmpi_num_node_local_proc\n");
+                fprintf(benchmarkResult, "runtime\tnbody\ttstop\tnstep\ttnow\tmpi_nodes\tmpi_depth\tomp_threashold\tmax_exchanged_bodies\tleast_exchanged_bodies\tseed\tomp_threads\tmpi_num_node_local_proc\tcuda_size\tcuda_streams\n");
 
-            fprintf(benchmarkResult, "%f\t%i\t%f\t%i\t%f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%s\n",stop_time-start_time, nbody,
-                tstop, nstep, tnow, mpi_numproc, mpi_depth, omp_threshold, max_bodies_exchanged, least_bodies_exchanged, seed, omp_get_max_threads(), local_mpi_size);
+            fprintf(benchmarkResult, "%f\t%i\t%f\t%i\t%f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%s\t%i\t%i\n",stop_time-start_time, nbody,
+                tstop, nstep, tnow, mpi_numproc, mpi_depth, omp_threshold, max_bodies_exchanged, least_bodies_exchanged, seed, omp_get_max_threads(), local_mpi_size, cuda_size, cuda_streams);
         }
 
 
@@ -271,7 +272,9 @@ local void startrun(void) {
 #endif
         usequad = getbparam("usequad");
         tstop = getdparam("tstop");
-        cuda_size = getiparam("CUDA_SIZE")
+        cuda_size = getiparam("CUDA_SIZE");
+        cuda_streams = getiparam("CUDA_STREAMS");
+
 
 #if defined(USEFREQ)
         freqout = getdparam("freqout");

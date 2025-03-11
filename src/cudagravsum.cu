@@ -47,12 +47,14 @@ typedef struct {
 #error "NDIM must be 2, 3, or 4"
 #endif
 
-#define N_CUDA_STREAMS 4
+//#define N_CUDA_STREAMS 4
+
+
 #define BLOCK_SIZE 256
 
 
 
-static cudaStream_t localCudaStreams[N_CUDA_STREAMS];
+static cudaStream_t localCudaStreams[cuda_streams];
 
 static real *device_body_cell_mass_list;
 
@@ -286,7 +288,7 @@ void cuda_gravsum_dispatch()
     cudaFreeAsync(d_offset_raw, localCudaStreams[idle_stream]);
     cudaFreeAsync(d_bodies_to_process_raw, localCudaStreams[idle_stream]);
 
-    idle_stream = (idle_stream+1) % N_CUDA_STREAMS;
+    idle_stream = (idle_stream+1) % cuda_streams;
 
 
     // cudaMemcpyAsync(h_out_phi_raw+lower, d_out_phi_raw+lower, sizeof(real)*width, 
@@ -323,7 +325,7 @@ void cuda_dispatch_last_batch(){
 
 void cuda_collect_result(){
 
-    for (int i = 0; i < N_CUDA_STREAMS; i++){
+    for (int i = 0; i < cuda_streams; i++){
         cudaStreamSynchronize(localCudaStreams[i]);
     }
 
@@ -351,7 +353,7 @@ void cuda_collect_result(){
 void cuda_gravsum_init() {
     //TODO: Guard against/allow multiple calls?
     //cudaStreamCreate(&localCudaStream);
-    for (int i = 0; i < N_CUDA_STREAMS; i++){
+    for (int i = 0; i < cuda_streams; i++){
         cudaStreamCreate(&localCudaStreams[i]);
     }
     // printf("!!!!!!!!!! Only run on singlethread, struct of array is not thread safe\n");
@@ -415,7 +417,7 @@ void cuda_free_all(){
     cudaFree(device_body_cell_pos_list);
     cudaFree(d_out_acc_raw);
     cudaFree(d_out_phi_raw);
-    for (int i = 0; i < N_CUDA_STREAMS; i++){
+    for (int i = 0; i < cuda_streams; i++){
         cudaStreamDestroy(localCudaStreams[i]);
     }
 }

@@ -75,7 +75,7 @@ global int mpi_depth;
 global int omp_threshold;
 
 global int cuda_size;
-
+global int cuda_streams;
 /*
  * Prototypes for I/O routines.
  */
