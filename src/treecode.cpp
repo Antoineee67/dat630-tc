@@ -65,6 +65,8 @@ string defv[] = {
     ";OMP threshold to which tree depth to parallelize. Below this depth new threads are not created",
     "random_seed=false",
     ";Set if seed should be randomly generated.",
+    "CUDA_SIZE=65535",
+    ";CUDA dispatch size",
     NULL,
 };
 
@@ -83,6 +85,8 @@ local int max_bodies_exchanged = 0 ;
 local int least_bodies_exchanged = 2147483647;
 
 local char* local_mpi_size;
+
+int cuda_size;
 
 void create_mpi_body_update_type(MPI_Datatype *mpi_body_update_type) {
     // Define the lengths of each block
@@ -267,6 +271,8 @@ local void startrun(void) {
 #endif
         usequad = getbparam("usequad");
         tstop = getdparam("tstop");
+        cuda_size = getiparam("CUDA_SIZE")
+
 #if defined(USEFREQ)
         freqout = getdparam("freqout");
 #else

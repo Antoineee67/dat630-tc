@@ -50,6 +50,8 @@ typedef struct {
 #define N_CUDA_STREAMS 4
 #define BLOCK_SIZE 256
 
+
+
 static cudaStream_t localCudaStreams[N_CUDA_STREAMS];
 
 static real *device_body_cell_mass_list;
@@ -199,7 +201,7 @@ void cuda_gravsum(bodyptr current_body, cell_ll_entry_t *cell_list_tail, cell_ll
     h_offset.push_back(h_interact_vecs.size()); // = end
     h_bodies_to_process.push_back((size_t)(current_body-bodytab));
 
-    if (h_bodies_to_process.size()==BLOCK_SIZE*256){
+    if (h_bodies_to_process.size()==cuda_size){
         cuda_gravsum_dispatch();
         h_interact_vecs.clear();
         h_bodies_to_process.clear();
