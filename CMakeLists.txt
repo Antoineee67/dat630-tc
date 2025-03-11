@@ -20,6 +20,9 @@ target_include_directories(treecode PRIVATE
         "src"
 )
 
+target_compile_options(treecode PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-gencode arch=compute_90,code=sm_90>)
+
+
 
 target_link_libraries(treecode PRIVATE
         m
