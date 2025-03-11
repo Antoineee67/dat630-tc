@@ -16,6 +16,7 @@
 #include "treedefs.h"
 #include <stdbool.h>
 #include <stdint.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "omp.h"
@@ -36,6 +37,7 @@ string defv[] = {
 #endif
     "in=", ";Input file with initial conditions",
     "out=", ";Output file of N-body frames",
+    "benchmark=", ";File to save benchmark data in",
 #if defined(USEFREQ)
     "freq=32.0",                ";Leapfrog integration frequency",
 #else
@@ -61,6 +63,8 @@ string defv[] = {
     "mpi_depth=5", ";MPI threshold for which tree depth to filter by MPI node",
     "omp_threshold=6",
     ";OMP threshold to which tree depth to parallelize. Below this depth new threads are not created",
+    "random_seed=false",
+    ";Set if seed should be randomly generated.",
     NULL,
 };
 
@@ -71,6 +75,14 @@ local void stepsystem(void); /* advance by one time-step */
 local void startrun(void); /* initialize system state  */
 local void testdata(void); /* generate test data       */
 local void dataExchange(); /* exchange data between processes */
+
+local int seed;
+
+local int max_bodies_exchanged = 0 ;
+
+local int least_bodies_exchanged = 2147483647;
+
+local char* local_mpi_size;
 
 void create_mpi_body_update_type(MPI_Datatype *mpi_body_update_type) {
     // Define the lengths of each block
@@ -102,6 +114,10 @@ int main(int argc, string argv[]) {
     MPI_Init(NULL, NULL);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_numproc);
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+
+    local_mpi_size = getenv("OMPI_COMM_WORLD_LOCAL_SIZE");
+
+
     create_mpi_body_update_type(&mpi_body_update_type);
 
     int deviceCount;
@@ -156,6 +172,20 @@ int main(int argc, string argv[]) {
     if (mpi_rank == 0) {
         double stop_time = omp_get_wtime();
         printf("Time elapsed: %g sec\n", stop_time - start_time);
+        printf("This was run on %i MPI nodes", mpi_numproc);
+
+        if (!strnull(benchmarkFile)) {
+            FILE* benchmarkResult = fopen(benchmarkFile, "a");
+            //Write header if new file
+            if (ftell(benchmarkResult) == 0)
+                fprintf(benchmarkResult, "runtime\tnbody\ttstop\tnstep\ttnow\tmpi_nodes\tmpi_depth\tomp_threashold\tmax_exchanged_bodies\tleast_exchanged_bodies\tseed\tomp_threads\tmpi_num_node_local_proc\n");
+
+            fprintf(benchmarkResult, "%f\t%i\t%f\t%i\t%f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%s\n",stop_time-start_time, nbody,
+                tstop, nstep, tnow, mpi_numproc, mpi_depth, omp_threshold, max_bodies_exchanged, least_bodies_exchanged, seed, omp_get_max_threads(), local_mpi_size);
+        }
+
+
+
     }
     cuda_free_all();
     MPI_Finalize();
@@ -197,9 +227,7 @@ local void stepsystem(void) {
         ADDMULVS(Pos(p), Vel(p), dtime); /* advance r by 1 step      */
     }
     treeforce(); /* perform force calc.      */
-    if (mpi_numproc > 1){
-        dataExchange();
-    }
+    dataExchange();
     for (p = bodytab; p < bodytab + nbody; p++) {
         /* loop over all bodies     */
         ADDMULVS(Vel(p), Acc(p), 0.5 * dtime); /* advance v by 1/2 step    */
@@ -215,6 +243,7 @@ local void stepsystem(void) {
 local void startrun(void) {
     mpi_depth = getiparam("mpi_depth");
     omp_threshold = getiparam("omp_threshold");
+
 #if !defined(USEFREQ)
     double dt1, dt2;
 #endif
@@ -222,6 +251,8 @@ local void startrun(void) {
     infile = getparam("in"); /* set I/O file names       */
     outfile = getparam("out");
     savefile = getparam("save");
+    benchmarkFile = getparam("benchmark");
+
     if (strnull(getparam("restore"))) {
         /* if starting a new run    */
         eps = getdparam("eps"); /* get input parameters     */
@@ -249,7 +280,13 @@ local void startrun(void) {
             nbody = getiparam("nbody"); /* get number of bodies     */
             if (nbody < 1) /* check for silly values   */
                 error("startrun: absurd value for nbody\n");
-            srandom(getiparam("seed")); /* set random number gen.   */
+
+            if (getbparam("random_seed"))
+                seed = time(NULL);
+            else
+                seed = getiparam("seed");
+
+            srandom(seed); /* set random number gen.   */
             testdata(); /* and make plummer model   */
             tnow = 0.0; /* reset elapsed model time */
         }
@@ -301,7 +338,6 @@ local void testdata(void) {
     bodyptr p;
 
     bodytab = (bodyptr) allocate(nbody * sizeof(body));
-    celltab = (cellptr) allocate(nbody * sizeof(cell));
     local_body_updates_buffer = (body_update_t *) allocate(nbody * sizeof(body_update_t));
     all_body_updates_buffer = (body_update_t *) allocate(nbody * sizeof(body_update_t));
     /* alloc space for bodies   */
@@ -361,14 +397,28 @@ local void dataExchange() {
     int32_t total_changes = 0;
     for (int i = 0; i < mpi_numproc; i++) {
         total_changes += receive_count[i];
+
+        //Save the least amount of exchanged data and the maximum amount.
+        if (receive_count[i] < least_bodies_exchanged)
+            least_bodies_exchanged = receive_count[i];
+
+        if (receive_count[i] > max_bodies_exchanged)
+            max_bodies_exchanged = receive_count[i];
     }
+
+
 
     if (total_changes != nbody && mpi_rank == 0) {
         printf("Total changes: %d, nbody: %d, exchange count %d, local changes %d, rank %d\n", total_changes, nbody,
                exchange_count, local_changes_count, mpi_rank);
     }
 
-    body_update_t all_body_updates_buffer_local[total_changes];
+    //body_update_t all_body_updates_buffer_local[total_changes];
+    //It seems like we get stack overflow? when allocating to large of an array on the stack. For some cases total_changes can be ~500 000
+
+    //Malloc solves this but could be slower?
+    body_update_t *all_body_updates_buffer_local = malloc(total_changes*sizeof(body_update_t));
+
 
     // Compute displacements
     int displs[mpi_numproc];
@@ -386,11 +436,7 @@ local void dataExchange() {
         assert(update->index < nbody);
         body->phi = update->phi;
         SETV(body->acc, update->acc);
-
-        // if ((int)(body-bodytab) == 10){
-        //     printf("body[10]->phi = %f\n", body->phi);
-        //     printf("body[10]->mass = %f", Mass(body));
-        // }
-
     }
+
+    free(all_body_updates_buffer_local);
 }
