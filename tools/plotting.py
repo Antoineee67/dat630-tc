@@ -134,29 +134,53 @@ def mpi_speedup(df: pandas.DataFrame):
     fig.savefig(f"./plots/mpi_1thread.png", dpi=300)
 
 
+#Use a special baseline because this was run on tstop = 0.3125.
+def cuda_benchmark(df: pandas.DataFrame, special_baseline):
+    fig, ax = plt.subplots()
+    nr_streams = df["cuda_streams"].unique()
+    for stream in nr_streams:
+        sub_df = df.query("cuda_streams==@stream")
+        ordering = sub_df["cuda_size"].sort_values().index
+        ax.scatter(sub_df["cuda_size"][ordering], special_baseline/sub_df["runtime"][ordering], label=f"Nr CUDA streams: {stream}")
+    
+
+    ax.set_ylabel("Speedup", fontsize=16)
+    ax.set_xlabel("Dispatch Size", fontsize=16)
+    ax.set_title("$N=10^6$", fontsize=16)
+    ax.set_xscale("log", base=2)
+    ax.tick_params(axis='both', which='major', labelsize=14)
+    ax.tick_params(axis='both', which='minor', labelsize=8)
+    ax.xaxis.set_major_formatter(plticker.ScalarFormatter())
+    ax.legend()
+    
+    fig.savefig(f"./plots/cuda_bench.png", dpi=300)
+
 
 
 if not os.path.exists("./plots"):
     os.makedirs("./plots")
 
 
-df_mpi_depth = pandas.read_csv(r"../localjobs/mpi_depth_data.txt",header=0, decimal=".", delimiter="\t")
+#df_mpi_depth = pandas.read_csv(r"../localjobs/mpi_depth_data.txt",header=0, decimal=".", delimiter="\t")
 #openMP_depth = pandas.read_csv(r"../localjobs/openMP_threshold_data.txt",header=0, decimal=".", delimiter="\t")
 
 
-mpi_depth_optimum_depth_and_exchanged_bodies(df_mpi_depth, 2)
+#mpi_depth_optimum_depth_and_exchanged_bodies(df_mpi_depth, 2)
 
 #openmp_threashold(openMP_depth)
 
 
-runtime_bench = pandas.read_csv(r"../benchmarks/vera-1-mpi-runtime-no-ompnest",header=0, decimal=".", delimiter="\t")
+#runtime_bench = pandas.read_csv(r"../benchmarks/vera-1-mpi-runtime-no-ompnest",header=0, decimal=".", delimiter="\t")
 
-speedup_benchmark_plots(runtime_bench)
+#speedup_benchmark_plots(runtime_bench)
 
 #levels_bench = pandas.read_csv(r"../levelsTest/treecodeBenchmark.txt",header=0, decimal=".", delimiter="\t")
 
 #speedup_omp_levels(levels_bench)
 
-mpi_speedup(runtime_bench)
+#mpi_speedup(runtime_bench)
+
+cuda_bench = pandas.read_csv(r"../benchmarks/CudaBenchmark.txt",header=0, decimal=".", delimiter="\t")
 
 
+cuda_benchmark(cuda_bench, 250/3)
