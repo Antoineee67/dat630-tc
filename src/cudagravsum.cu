@@ -54,7 +54,7 @@ typedef struct {
 
 
 
-static cudaStream_t localCudaStreams[cuda_streams];
+static cudaStream_t *localCudaStreams;
 
 static real *device_body_cell_mass_list;
 
@@ -353,6 +353,11 @@ void cuda_collect_result(){
 void cuda_gravsum_init() {
     //TODO: Guard against/allow multiple calls?
     //cudaStreamCreate(&localCudaStream);
+
+
+    localCudaStreams = (cudaStream_t*) malloc(sizeof(cudaStream_t)*cuda_streams);
+
+
     for (int i = 0; i < cuda_streams; i++){
         cudaStreamCreate(&localCudaStreams[i]);
     }
