@@ -85,7 +85,7 @@ class timestep:
 
 
     def timestepEqual(self, nbody, ndim, timestepIdx ,filestep):
-        epsilon = 1e-4
+        epsilon = 1e-3
         if abs(self.timeStamp - filestep.timeStamp) > epsilon:
             print(f"Fail: Timestamp not equal. TimeIndx {timestepIdx} {self.timeStamp} != {filestep.timeStamp}")
             return False

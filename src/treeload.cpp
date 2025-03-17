@@ -102,8 +102,10 @@ local cellptr makecell(void)
     c = &celltab[ncell];                         /* get cell from array      */
     Type(c) = CELL;                             /* initialize node type     */
     Update(c) = FALSE;                          /* and force update flag    */
-    for (i = 0; i < NSUB; i++)                  /* loop over subcells       */
+    for (i = 0; i < NSUB; i++){                  /* loop over subcells       */
         Subp(c)[i] = NULL;                      /* and empty each one       */
+        ChildIdx(c)[i] = -1;
+    }
     ncell++;                                    /* count one more cell      */
     return (c);                                 /* return pointer to cell   */
 }
@@ -266,9 +268,19 @@ local void threadtree(nodeptr p, nodeptr n)
     Next(p) = n;                                /* set link to next node    */
     if (Type(p) == CELL) {                      /* if descendents to thread */
         ndesc = 0;                              /* start counting them      */
-        for (i = 0; i < NSUB; i++)              /* loop over all subcells   */
-            if (Subp(p)[i] != NULL)             /* if this one is occupied  */
-                desc[ndesc++] = Subp(p)[i];     /* then store it in table   */
+        for (i = 0; i < NSUB; i++){             /* loop over all subcells   */
+            if (Subp(p)[i] != NULL) {           /* if this one is occupied  */
+                desc[ndesc] = Subp(p)[i];     /* then store it in table   */
+                if (Type(Subp(p)[i]) == CELL){
+                    ChildIdx(p)[i] = (cellptr)Subp(p)[i] - celltab + nbody;
+                }
+                else{
+                    ChildIdx(p)[i] = (bodyptr)Subp(p)[i] - bodytab;
+                }
+                ndesc++;
+            }            
+        }              
+            
         More(p) = desc[0];                      /* set link to 1st one      */
         desc[ndesc] = n;                        /* thread last one to next  */
         for (i = 0; i < ndesc; i++)             /* loop over descendents    */

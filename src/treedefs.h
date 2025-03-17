@@ -71,6 +71,7 @@ typedef struct {
         nodeptr subp[NSUB];     /* descendents of cell */
         matrix quad;            /* quad. moment of cell */
     } sorq;
+    int32_t childIdx[NSUB];
 } cell, *cellptr;
 
 #if !defined(QUICKSCAN)
@@ -80,6 +81,7 @@ typedef struct {
 #define More(x)   (((cellptr) (x))->more)
 #define Subp(x)   (((cellptr) (x))->sorq.subp)
 #define Quad(x)   (((cellptr) (x))->sorq.quad)
+#define ChildIdx(x) (((cellptr) (x))->childIdx)
 
 /*
  * GLOBAL: pseudo-keyword for storage class.

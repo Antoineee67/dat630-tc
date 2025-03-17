@@ -20,8 +20,8 @@
 
 #include "omp.h"
 #include "mpi.h"
-#include "cudagravsum.cuh"
-
+//#include "cudagravsum.cuh"
+#include "cudatree.cuh"
 
 /*
  * Default values for input parameters.
@@ -128,7 +128,7 @@ int main(int argc, string argv[]) {
         startoutput();
     } /* activate output code     */
 
-    cuda_gravsum_init();
+    //cuda_gravsum_init();
     if (nstep == 0) {
         /* if data just initialized */
         treeforce(); /* do complete calculation  */
@@ -157,7 +157,7 @@ int main(int argc, string argv[]) {
         double stop_time = omp_get_wtime();
         printf("Time elapsed: %g sec\n", stop_time - start_time);
     }
-    cuda_free_all();
+    //cuda_free_all();
     MPI_Finalize();
     return (0); /* end with proper status   */
 }
@@ -172,10 +172,18 @@ local void treeforce(void) {
     for (p = bodytab; p < bodytab + nbody; p++) /* loop over all bodies     */
         Update(p) = TRUE; /* update all forces        */
     maketree(bodytab, nbody); /* construct tree structure */
-    cuda_update_body_cell_data();
-    gravcalc(); /* compute initial forces   */
-    cuda_dispatch_last_batch();
-    cuda_collect_result();
+    //cuda_update_body_cell_data();
+    //gravcalc(); /* compute initial forces   */
+    //cuda_dispatch_last_batch();
+    //cuda_collect_result();
+    // for (int i = 0; i<NSUB; i++){
+    //     printf("cell[%d] child[%d] = %d\n", ncell-1, i, ChildIdx(&celltab[ncell-1])[i]);
+    // }
+    cuda_tree_init();
+    cuda_copy_tree();
+    cuda_tree_compute();
+    cuda_tree_collect_result();
+    cuda_tree_free();
     if (mpi_rank == 0)
         forcereport(); /* print force statistics   */
 }
