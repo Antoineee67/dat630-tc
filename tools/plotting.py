@@ -150,9 +150,26 @@ def cuda_benchmark(df: pandas.DataFrame, special_baseline):
     ax.set_xscale("log", base=2)
     ax.tick_params(axis='both', which='major', labelsize=14)
     ax.tick_params(axis='both', which='minor', labelsize=8)
-    ax.legend()
     
     fig.savefig(f"./plots/cuda_bench.png", dpi=300)
+
+def cuda_blocksize(df: pandas.DataFrame, special_baseline, plottitle, blocksizeKey):
+    fig, ax = plt.subplots()
+    ordering = df[blocksizeKey].sort_values().index
+ 
+
+        
+    ax.plot(df[blocksizeKey][ordering], special_baseline/df["runtime"][ordering])
+    
+
+    ax.set_ylabel("Speedup", fontsize=16)
+    ax.set_xlabel("Block Size", fontsize=16)
+    ax.set_title("$N=10^6$", fontsize=16)
+    ax.set_xscale("log", base=2)
+    ax.tick_params(axis='both', which='major', labelsize=14)
+    ax.tick_params(axis='both', which='minor', labelsize=8)
+    
+    fig.savefig(f"./plots/{plottitle}.png", dpi=300)
 
 
 
@@ -179,7 +196,14 @@ if not os.path.exists("./plots"):
 
 #mpi_speedup(runtime_bench)
 
-cuda_bench = pandas.read_csv(r"../benchmarks/CudaBenchmark.txt",header=0, decimal=".", delimiter="\t")
+#cuda_bench = pandas.read_csv(r"../benchmarks/CudaBenchmark.txt",header=0, decimal=".", delimiter="\t")
 
 
-cuda_benchmark(cuda_bench, 96)
+#cuda_benchmark(cuda_bench, 96)
+
+
+cudaBlockSizeV1 = pandas.read_csv(r"../benchmarks/CudaV1_block_size_Benchmark.txt",header=0, decimal=".", delimiter="\t")
+cudaBlockSizeV2 = pandas.read_csv(r"../benchmarks/CudaV2_block_size_Benchmark.txt",header=0, decimal=".", delimiter="\t")
+
+cuda_blocksize(cudaBlockSizeV1, 96, "blocksize_cuda_v1", "cuda_blocksize")
+cuda_blocksize(cudaBlockSizeV2, 96, "blocksize_cuda_v2", "CUDA_BLOCKSIZE")
