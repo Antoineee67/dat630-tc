@@ -70,7 +70,7 @@ string defv[] = {
     "CUDA_STREAMS=4",
     ";Nr of CUDA streams",
     "CUDA_BLOCKSIZE=256",
-    "CUDA blocksize",
+    ";CUDA blocksize",
     NULL,
 };
 
