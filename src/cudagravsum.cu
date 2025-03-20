@@ -137,8 +137,10 @@ __global__ void cuda_node_reduction_kernel(real eps2, uint32_t* interact_lists, 
         start = offset[list_index-1];
     }
 
-    __shared__ real local_phi_p[blocksizePass];
-    __shared__ cuda_vector local_acc[blocksizePass];
+    extern __shared__ real shared[];
+
+    real *local_phi_p = shared;
+    cuda_vector *local_acc = (cuda_vector*) &local_phi_p[blocksizePass];
     real dr2, drab, phi_p, mr3i;
     cuda_vector dr;
     real block_sum_phi = 0;
@@ -274,7 +276,7 @@ void cuda_gravsum_dispatch()
     //     d_out_phi_raw, // phi
     //     d_out_acc_raw, // acc
     //     nBodiesToProcess); // offset for each stream
-    cuda_node_reduction_kernel<<<nBodiesToProcess, blocksize, 0, localCudaStreams[idle_stream]>>>(eps2, 
+    cuda_node_reduction_kernel<<<nBodiesToProcess, blocksize, (cuda_blocksize*sizeof(real) + cuda_blocksize*NDIM*sizeof(float)), localCudaStreams[idle_stream]>>>(eps2,
         d_interact_vecs_raw, // 1D vector which links all interact lists
         d_offset_raw, // offset for each body in 1D vector
         d_bodies_to_process_raw, 
