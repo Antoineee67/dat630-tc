@@ -71,6 +71,7 @@ global MPI_Datatype mpi_body_update_type;
 
 global int mpi_depth;
 global int omp_threshold;
+global int cuda_blocksize;
 
 /*
  * Prototypes for I/O routines.

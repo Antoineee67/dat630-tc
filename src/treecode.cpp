@@ -61,6 +61,8 @@ string defv[] = {
     "mpi_depth=5", ";MPI threshold for which tree depth to filter by MPI node",
     "omp_threshold=6",
     ";OMP threshold to which tree depth to parallelize. Below this depth new threads are not created",
+    "CUDA_BLOCKSIZE=256",
+    ";CUDA blocksize",
     NULL,
 };
 
@@ -292,6 +294,8 @@ local void startrun(void) {
         if (scanopt(options, "new-tout")) /* if output time reset     */
             tout = tnow + dtout; /* then offset from now     */
 #endif
+
+        cuda_blocksize = getiparam("CUDA_BLOCKSIZE");
     }
 }
 

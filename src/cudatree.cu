@@ -84,7 +84,7 @@ void cuda_copy_tree(){
 
 void cuda_tree_compute(){
 
-    int block_size = BLOCK_SIZE;
+    int block_size = cuda_blocksize;
     int grid_size = (nbody + block_size - 1)/block_size;
     
     cuda_tree_compute_kernel<<<grid_size, block_size>>>(d_mass_list, d_pos_list, d_child_list, d_rcrit_list, 

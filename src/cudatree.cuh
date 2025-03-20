@@ -33,7 +33,7 @@
 #error "NDIM must be 2, 3, or 4"
 #endif
 
-#define BLOCK_SIZE 256
+//#define BLOCK_SIZE 256
 
 void cuda_copy_tree();
 
