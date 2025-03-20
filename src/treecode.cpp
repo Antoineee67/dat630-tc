@@ -168,7 +168,7 @@ int main(int argc, string argv[]) {
             if (ftell(benchmarkResult) == 0)
                 fprintf(benchmarkResult, "runtime\tnbody\ttstop\tnstep\ttnow\tmpi_nodes\tmpi_depth\tomp_threashold\tomp_threads\tCUDA_BLOCKSIZE\n");
 
-            fprintf(benchmarkResult, "%f\t%i\t%f\t%i\t%f\t%i\t%i\t%i\t%i%i\n",stop_time-start_time, nbody,
+            fprintf(benchmarkResult, "%f\t%i\t%f\t%i\t%f\t%i\t%i\t%i\t%i\t%i\n",stop_time-start_time, nbody,
                 tstop, nstep, tnow, mpi_numproc, mpi_depth, omp_threshold, omp_get_max_threads(), cuda_blocksize);
         }
     }
