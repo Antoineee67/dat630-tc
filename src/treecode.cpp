@@ -239,6 +239,8 @@ local void stepsystem(void) {
 local void startrun(void) {
     mpi_depth = getiparam("mpi_depth");
     omp_threshold = getiparam("omp_threshold");
+    cuda_blocksize = getiparam("CUDA_BLOCKSIZE");
+    printf("Cudablocksize check: &i", cuda_blocksize);
 #if !defined(USEFREQ)
     double dt1, dt2;
 #endif
@@ -310,7 +312,7 @@ local void startrun(void) {
             tout = tnow + dtout; /* then offset from now     */
 #endif
 
-        cuda_blocksize = getiparam("CUDA_BLOCKSIZE");
+
     }
 }
 
