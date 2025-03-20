@@ -1,0 +1,24 @@
+Bootstrap: docker
+From: ubuntu:24.10
+
+#build the container on the cluster with module ml Clang/16.0.6-GCCcore-13.3.0 buildenv/default-foss-2024a
+#maybe lookinto building with MPI 5.0.3
+
+
+%environment
+    export OMPI_MCA_btl_vader_single_copy_mechanism=none
+
+%files
+    ./src /opt/app/
+    ./CMakeLists.txt /opt/app/
+
+%post
+    apt-get update && apt-get install -y openmpi-common openmpi-bin libopenmpi-dev cmake build-essential
+
+    cd /opt/app
+    cmake -S . -B build/ -D CMAKE_BUILD_TYPE=Release
+    cmake --build build/
+
+
+%runscript
+    /opt/app/build/treecode "$@"

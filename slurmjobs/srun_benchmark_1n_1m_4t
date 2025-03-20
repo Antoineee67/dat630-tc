@@ -1,0 +1,17 @@
+#!/bin/bash
+#SBATCH --job-name="treecode benchmark"
+#SBATCH -A C3SE2024-2-18 -p vera #Check if correct project
+#SBATCH -t 0-00:05:00 #Max runtime of 20 min
+#SBATCH --output=output_treecode_benchmark%j.txt
+#SBATCH --nodes=1 # Number of nodes
+#SBATCH --ntasks-per-node=1 # MPI tasks (ranks) per node
+#SBATCH --cpus-per-task=4 # OpenMP threads per MPI rank
+#SBATCH -C ZEN4
+
+export OMP_MAX_ACTIVE_LEVELS=4
+
+export OMP_NUM_THREADS=4 # Set number of OpenMP threads per MPI rank
+
+module load OpenMPI/5.0.3-GCC-13.3.0-aocc
+
+srun ../build/treecode nbody=1000000 mpi_depth=8 tstop=1 omp_threshold=999 benchmark=treecodeBenchmark.txt random_seed=true

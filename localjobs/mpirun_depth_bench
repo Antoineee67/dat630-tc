@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+export OMP_NUM_THREADS=1  Set number of OpenMP threads per MPI rank
+
+declare -a arr=(50000 100000 150000 200000 250000 300000 350000 400000 450000 500000 550000 600000 650000 700000 750000 800000 850000 900000 950000 1000000)
+declare -a depth=(5 6 7 8 9 10 11 12)
+repetitions=2
+
+for x in $(seq $repetitions);
+do
+    for i in "${arr[@]}"
+    do
+        for j in "${depth[@]}"
+        do
+          mpirun -N 4 $1 nbody="$i" mpi_depth=$j tstop=0.0625 omp_threshold=0 benchmark=mpi_depth_data.txt random_seed=true
+        done
+    done
+done
+
