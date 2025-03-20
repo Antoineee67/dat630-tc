@@ -156,7 +156,8 @@ int main(int argc, string argv[]) {
                 output(); /* and output results       */
         }
 #endif
-    if (mpi_rank == 0) {
+    if (mpi_rank == 0)
+    {
         double stop_time = omp_get_wtime();
         printf("Time elapsed: %g sec\n", stop_time - start_time);
         printf("This was run on %i MPI nodes", mpi_numproc);
@@ -170,6 +171,7 @@ int main(int argc, string argv[]) {
             fprintf(benchmarkResult, "%f\t%i\t%f\t%i\t%f\t%i\t%i\t%i\t%i\n",stop_time-start_time, nbody,
                 tstop, nstep, tnow, mpi_numproc, mpi_depth, omp_threshold, omp_get_max_threads(), cuda_blocksize);
         }
+    }
 
     //cuda_free_all();
     MPI_Finalize();
