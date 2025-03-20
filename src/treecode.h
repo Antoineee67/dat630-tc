@@ -61,6 +61,7 @@ global body_update_t* local_body_updates_buffer;
 
 global body_update_t* all_body_updates_buffer;
 
+global string benchmarkFile;
 
 
 global int mpi_rank; 
