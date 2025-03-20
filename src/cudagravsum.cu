@@ -122,7 +122,7 @@ __global__ void cuda_node_calc_kernel(real eps2, uint32_t* interact_lists, uint3
 }
 
 __global__ void cuda_node_reduction_kernel(real eps2, uint32_t* interact_lists, uint32_t* offset, size_t* bodies_to_process,
-    cuda_vector* pos_list, real* mass_list, real *out_phi_list, cuda_vector* out_acc_list, size_t n_bodies){
+    cuda_vector* pos_list, real* mass_list, real *out_phi_list, cuda_vector* out_acc_list, size_t n_bodies, int blocksizePass){
     
     int tx = threadIdx.x;
     size_t list_index = blockIdx.x;
@@ -137,8 +137,8 @@ __global__ void cuda_node_reduction_kernel(real eps2, uint32_t* interact_lists, 
         start = offset[list_index-1];
     }
 
-    __shared__ real local_phi_p[cuda_blocksize];
-    __shared__ cuda_vector local_acc[cuda_blocksize];
+    __shared__ real local_phi_p[blocksizePass];
+    __shared__ cuda_vector local_acc[blocksizePass];
     real dr2, drab, phi_p, mr3i;
     cuda_vector dr;
     real block_sum_phi = 0;
@@ -282,7 +282,8 @@ void cuda_gravsum_dispatch()
         device_body_cell_mass_list, // mass
         d_out_phi_raw, // phi
         d_out_acc_raw, // acc
-        nBodiesToProcess); // offset for each stream
+        nBodiesToProcess,
+        cuda_blocksize); // offset for each stream
 
     cudaFreeAsync(d_interact_vecs_raw, localCudaStreams[idle_stream]);
     cudaFreeAsync(d_offset_raw, localCudaStreams[idle_stream]);
