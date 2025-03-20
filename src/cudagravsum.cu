@@ -50,7 +50,7 @@ typedef struct {
 //#define N_CUDA_STREAMS 4
 
 
-#define BLOCK_SIZE 256
+//#define BLOCK_SIZE 256
 
 
 
@@ -137,8 +137,8 @@ __global__ void cuda_node_reduction_kernel(real eps2, uint32_t* interact_lists, 
         start = offset[list_index-1];
     }
 
-    __shared__ real local_phi_p[BLOCK_SIZE];
-    __shared__ cuda_vector local_acc[BLOCK_SIZE];
+    __shared__ real local_phi_p[cuda_blocksize];
+    __shared__ cuda_vector local_acc[cuda_blocksize];
     real dr2, drab, phi_p, mr3i;
     cuda_vector dr;
     real block_sum_phi = 0;
@@ -262,7 +262,7 @@ void cuda_gravsum_dispatch()
                 
     cudaStreamSynchronize(localCudaStreams[idle_stream]);
     
-    int blocksize = BLOCK_SIZE;
+    int blocksize = cuda_blocksize;
     int nrGrids = (nBodiesToProcess + blocksize - 1)/blocksize;
 
     // cuda_node_calc_kernel<<<nrGrids, blocksize, 0, localCudaStreams[idle_stream]>>>(eps2, 

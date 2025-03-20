@@ -76,6 +76,7 @@ global int omp_threshold;
 
 global int cuda_size;
 global int cuda_streams;
+global int cuda_blocksize;
 /*
  * Prototypes for I/O routines.
  */

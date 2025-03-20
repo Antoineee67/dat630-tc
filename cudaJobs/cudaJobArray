@@ -15,4 +15,4 @@ export OMP_NUM_THREADS=1 # Set number of OpenMP threads per MPI rank
 module load OpenMPI/5.0.3-GCC-13.3.0-aocc
 module load CUDA/12.6.0
 
-srun ../build/treecode nbody=1000000 mpi_depth=8 tstop=0.3125 omp_threshold=999 benchmark=CudaBenchmark.txt random_seed=true CUDA_STREAMS=$CUDA_STREAMS CUDA_SIZE=$CUDA_SIZE
+srun ../build/treecode nbody=1000000 mpi_depth=8 tstop=0.3125 omp_threshold=999 benchmark=CudaV1_block_size_Benchmark.txt random_seed=true CUDA_STREAMS=$CUDA_STREAMS CUDA_SIZE=$CUDA_SIZE CUDA_BLOCKSIZE=$CUDA_BLOCKSIZE

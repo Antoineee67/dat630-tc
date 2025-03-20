@@ -69,6 +69,8 @@ string defv[] = {
     ";CUDA dispatch size",
     "CUDA_STREAMS=4",
     ";Nr of CUDA streams",
+    "CUDA_BLOCKSIZE=256",
+    "CUDA blocksize",
     NULL,
 };
 
@@ -183,10 +185,10 @@ int main(int argc, string argv[]) {
             FILE* benchmarkResult = fopen(benchmarkFile, "a");
             //Write header if new file
             if (ftell(benchmarkResult) == 0)
-                fprintf(benchmarkResult, "runtime\tnbody\ttstop\tnstep\ttnow\tmpi_nodes\tmpi_depth\tomp_threashold\tmax_exchanged_bodies\tleast_exchanged_bodies\tseed\tomp_threads\tmpi_num_node_local_proc\tcuda_size\tcuda_streams\n");
+                fprintf(benchmarkResult, "runtime\tnbody\ttstop\tnstep\ttnow\tmpi_nodes\tmpi_depth\tomp_threashold\tmax_exchanged_bodies\tleast_exchanged_bodies\tseed\tomp_threads\tmpi_num_node_local_proc\tcuda_size\tcuda_streams\tcuda_blocksize\n");
 
-            fprintf(benchmarkResult, "%f\t%i\t%f\t%i\t%f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%s\t%i\t%i\n",stop_time-start_time, nbody,
-                tstop, nstep, tnow, mpi_numproc, mpi_depth, omp_threshold, max_bodies_exchanged, least_bodies_exchanged, seed, omp_get_max_threads(), local_mpi_size, cuda_size, cuda_streams);
+            fprintf(benchmarkResult, "%f\t%i\t%f\t%i\t%f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%s\t%i\t%i\t%i\n",stop_time-start_time, nbody,
+                tstop, nstep, tnow, mpi_numproc, mpi_depth, omp_threshold, max_bodies_exchanged, least_bodies_exchanged, seed, omp_get_max_threads(), local_mpi_size, cuda_size, cuda_streams, cuda_blocksize);
         }
 
 
@@ -274,6 +276,7 @@ local void startrun(void) {
         tstop = getdparam("tstop");
         cuda_size = getiparam("CUDA_SIZE");
         cuda_streams = getiparam("CUDA_STREAMS");
+        cuda_blocksize = getiparam("CUDA_BLOCKSIZE");
 
 
 #if defined(USEFREQ)
