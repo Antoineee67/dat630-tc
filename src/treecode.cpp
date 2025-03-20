@@ -180,10 +180,10 @@ int main(int argc, string argv[]) {
             FILE* benchmarkResult = fopen(benchmarkFile, "a");
             //Write header if new file
             if (ftell(benchmarkResult) == 0)
-                fprintf(benchmarkResult, "runtime\tnbody\ttstop\tnstep\ttnow\tmpi_nodes\tmpi_depth\tomp_threashold\tmax_exchanged_bodies\tleast_exchanged_bodies\tseed\tomp_threads\tmpi_num_node_local_proc\n");
+                fprintf(benchmarkResult, "runtime\tnbody\ttstop\tnstep\ttnow\tmpi_nodes\tmpi_depth\tomp_threashold\tmax_exchanged_bodies\tleast_exchanged_bodies\tseed\tomp_threads\tmpi_num_node_local_proc\tcuda_blocksize\n");
 
-            fprintf(benchmarkResult, "%f\t%i\t%f\t%i\t%f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%s\n",stop_time-start_time, nbody,
-                tstop, nstep, tnow, mpi_numproc, mpi_depth, omp_threshold, max_bodies_exchanged, least_bodies_exchanged, seed, omp_get_max_threads(), local_mpi_size);
+            fprintf(benchmarkResult, "%f\t%i\t%f\t%i\t%f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%s\t%i\n",stop_time-start_time, nbody,
+                tstop, nstep, tnow, mpi_numproc, mpi_depth, omp_threshold, max_bodies_exchanged, least_bodies_exchanged, seed, omp_get_max_threads(), local_mpi_size, cuda_blocksize);
         }
 
 
@@ -428,7 +428,7 @@ local void dataExchange() {
     //It seems like we get stack overflow? when allocating to large of an array on the stack. For some cases total_changes can be ~500 000
 
     //Malloc solves this but could be slower?
-    body_update_t *all_body_updates_buffer_local = malloc(total_changes*sizeof(body_update_t));
+    body_update_t *all_body_updates_buffer_local = (body_update_t*)malloc(total_changes*sizeof(body_update_t));
 
 
     // Compute displacements
